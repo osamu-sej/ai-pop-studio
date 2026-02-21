@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import PdfUploader from "./components/PdfUploader";
-import ProductList, { Product } from "./components/ProductList";
-import TemplateSelector, { Template } from "./components/TemplateSelector";
+import ProductList from "./components/ProductList";
+import type { Product } from "./components/ProductList";
+import TemplateSelector from "./components/TemplateSelector";
+import type { Template } from "./components/TemplateSelector";
 import PopPreview from "./components/PopPreview";
 import { parsePdf, getTemplates, generatePop } from "./api/client";
 
