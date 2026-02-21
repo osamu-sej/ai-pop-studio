@@ -6,6 +6,7 @@ import type { Product } from "./components/ProductList";
 import TemplateSelector from "./components/TemplateSelector";
 import type { Template } from "./components/TemplateSelector";
 import PopPreview from "./components/PopPreview";
+import PopPanel from "./components/PopPanel";
 import { parsePdf, getTemplates, generatePop } from "./api/client";
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
   const [parsing, setParsing] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingProductIndex, setEditingProductIndex] = useState<number | null>(null);
 
   useEffect(() => {
     getTemplates()
@@ -71,6 +73,10 @@ function App() {
     );
   };
 
+  const handleUpdatePhoto = (index: number, newPhoto: string) => {
+    handleUpdate(index, "photo_base64", newPhoto);
+  };
+
   const handleGenerate = async () => {
     const selected = products.filter((p) => p.selected);
     if (selected.length === 0) return;
@@ -111,24 +117,36 @@ function App() {
         </div>
       )}
 
-      <main className="app-main">
-        <PdfUploader onUpload={handleUpload} loading={parsing} />
-        <ProductList
-          products={products}
-          onToggle={handleToggle}
-          onUpdate={handleUpdate}
-        />
-        <TemplateSelector
-          templates={templates}
-          selected={selectedTemplate}
-          onSelect={setSelectedTemplate}
-        />
-        <PopPreview
-          canGenerate={canGenerate}
-          onGenerate={handleGenerate}
-          generating={generating}
-        />
-      </main>
+      <div className="app-content">
+        <div className="app-left">
+          <PdfUploader onUpload={handleUpload} loading={parsing} />
+          <ProductList
+            products={products}
+            onToggle={handleToggle}
+            onUpdate={handleUpdate}
+          />
+          <TemplateSelector
+            templates={templates}
+            selected={selectedTemplate}
+            onSelect={setSelectedTemplate}
+          />
+          <PopPreview
+            canGenerate={canGenerate}
+            onGenerate={handleGenerate}
+            generating={generating}
+          />
+        </div>
+
+        <div className="app-right">
+          <PopPanel
+            products={products}
+            editingIndex={editingProductIndex}
+            onEditImage={setEditingProductIndex}
+            onUpdatePhoto={handleUpdatePhoto}
+            onCloseEditor={() => setEditingProductIndex(null)}
+          />
+        </div>
+      </div>
     </div>
   );
 }
