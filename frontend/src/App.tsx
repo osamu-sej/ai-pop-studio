@@ -12,29 +12,42 @@ function App() {
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [parsing, setParsing] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getTemplates().then((data) => {
-      setTemplates(data.templates);
-      if (data.templates.length > 0) {
-        setSelectedTemplate(data.templates[0].template_id);
-      }
-    });
+    getTemplates()
+      .then((data) => {
+        setTemplates(data.templates);
+        if (data.templates.length > 0) {
+          setSelectedTemplate(data.templates[0].template_id);
+        }
+      })
+      .catch(() => {
+        setError("テンプレート一覧の取得に失敗しました。バックエンドが起動しているか確認してください。");
+      });
   }, []);
 
   const handleUpload = async (file: File) => {
     setParsing(true);
+    setError(null);
     try {
       const data = await parsePdf(file);
       setProducts(
-        data.products.map((p: Omit<Product, "selected" | "tax_rate">) => ({
-          ...p,
-          selected: true,
-          tax_rate: 1.08,
-        }))
+        data.products.map(
+          (p: Record<string, unknown>) => ({
+            product_name: p.product_name ?? "",
+            selling_price: p.selling_price ?? 0,
+            description: p.description ?? "",
+            recommendation: (p.description as string) ?? "",
+            photo_base64: p.photo_base64 ?? "",
+            page_number: p.page_number ?? 0,
+            selected: true,
+            tax_rate: 1.08,
+          }) as Product
+        )
       );
     } catch (e) {
-      alert("PDF解析に失敗しました: " + (e as Error).message);
+      setError("PDF解析に失敗しました: " + (e as Error).message);
     } finally {
       setParsing(false);
     }
@@ -61,6 +74,7 @@ function App() {
     if (selected.length === 0) return;
 
     setGenerating(true);
+    setError(null);
     try {
       const blob = await generatePop(selectedTemplate, selected);
       const url = URL.createObjectURL(blob);
@@ -70,7 +84,7 @@ function App() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      alert("POP生成に失敗しました: " + (e as Error).message);
+      setError("POP生成に失敗しました: " + (e as Error).message);
     } finally {
       setGenerating(false);
     }
@@ -85,6 +99,15 @@ function App() {
         <h1>POP Generator</h1>
         <p className="subtitle">セブンイレブン POP自動生成</p>
       </header>
+
+      {error && (
+        <div className="error-banner">
+          <span>{error}</span>
+          <button className="error-close" onClick={() => setError(null)}>
+            &times;
+          </button>
+        </div>
+      )}
 
       <main className="app-main">
         <PdfUploader onUpload={handleUpload} loading={parsing} />
