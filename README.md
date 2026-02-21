@@ -1,85 +1,102 @@
-# AI POP Studio
-
-セブンイレブン向けPOP（Point of Purchase）自動生成アプリ
-
+# POP Generator - セブンイレブン POP自動生成アプリ
+商品案内PDFから商品情報を自動抽出し、Excelテンプレートに挿入してPOPを生成するWebアプリケーション。
 ## 概要
-
-PDFカタログから商品情報を自動抽出し、ExcelのPOPテンプレートに挿入するWebアプリケーション。
-
-## 主要機能
-
-1. **PDF商品情報抽出** - Claude Vision APIを使用してPDFカタログから商品名・価格・画像等を抽出
-2. **POP自動生成** - 抽出した情報をExcelテンプレートに自動挿入
-3. **テンプレート管理** - 複数のPOPテンプレートを管理・選択
-
-## 技術スタック
-
-- **バックエンド**: FastAPI (Python)
-- **フロントエンド**: React / Vite
-- **AI**: Claude Vision API (Anthropic)
-- **開発環境**: GitHub Codespaces
-
-## セットアップ
-
-### バックエンド
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+セブンイレブンの新商品POPを作成する作業を自動化します。
+**従来のワークフロー（手作業）:**
 ```
-
-### フロントエンド
-
+商品案内PDF → 手動で商品名・売価・写真をコピー → Excelテンプレートに貼り付け → 税込価格を計算
+```
+**このアプリのワークフロー（自動化）:**
+```
+商品案内PDFをアップロード → 商品情報を自動抽出 → テンプレート選択 → POP自動生成・ダウンロード
+```
+## 主な機能
+- **PDF解析**: 商品案内PDFから商品名・売価・写真・説明文を自動抽出
+- **税込価格計算**: 税抜売価から税込価格を自動計算（8%/10%対応、税率変更可能）
+- **テンプレート管理**: 複数のExcel POPテンプレートに対応（初期2-3個、最大10個）
+- **POP生成**: 背景デザインを保持したまま商品情報を差し替え
+- **マルチユーザー**: 複数ユーザーが使用可能なWeb UI
+## 技術スタック
+| レイヤー | 技術 |
+|---------|------|
+| フロントエンド | React + Vite + TypeScript |
+| バックエンド | Python + FastAPI |
+| PDF解析 | PyMuPDF + Claude Vision API |
+| Excel操作 | openpyxl + XML直接操作 |
+| デプロイ | GitHub Codespaces |
+## プロジェクト構成
+```
+pop-generator/
+├── README.md
+├── docs/
+│   └── DESIGN.md          # 設計書
+├── frontend/              # React フロントエンド
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── src/
+│       ├── App.tsx
+│       ├── components/
+│       │   ├── PdfUploader.tsx
+│       │   ├── ProductList.tsx
+│       │   ├── TemplateSelector.tsx
+│       │   └── PopPreview.tsx
+│       └── api/
+│           └── client.ts
+├── backend/               # FastAPI バックエンド
+│   ├── requirements.txt
+│   ├── main.py
+│   ├── routers/
+│   │   ├── pdf.py         # PDF解析API
+│   │   ├── pop.py         # POP生成API
+│   │   └── templates.py   # テンプレート管理API
+│   ├── services/
+│   │   ├── pdf_parser.py  # PDF情報抽出
+│   │   ├── image_extractor.py  # 商品写真抽出
+│   │   ├── excel_writer.py     # Excel差し替え
+│   │   └── tax_calculator.py   # 税込計算
+│   └── templates/         # Excelテンプレート格納
+│       └── .gitkeep
+├── .devcontainer/         # Codespaces設定
+│   └── devcontainer.json
+└── .env.example           # 環境変数サンプル
+```
+## セットアップ
+### GitHub Codespaces
+1. リポジトリを開き「Code」→「Codespaces」→「Create codespace」
+2. 自動的に開発環境がセットアップされます
+### 手動セットアップ
 ```bash
+# バックエンド
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+# フロントエンド
 cd frontend
 npm install
 npm run dev
 ```
-
 ### 環境変数
-
-`.env` ファイルをプロジェクトルートに作成:
-
+```bash
+cp .env.example .env
+# .env を編集して Claude API キーを設定
+ANTHROPIC_API_KEY=your-api-key-here
 ```
-ANTHROPIC_API_KEY=your_api_key_here
-```
-
-## ディレクトリ構成
-
-```
-ai-pop-studio/
-├── backend/
-│   ├── app/
-│   │   ├── main.py          # FastAPIエントリーポイント
-│   │   ├── routers/         # APIルーター
-│   │   ├── services/        # ビジネスロジック
-│   │   │   ├── pdf_extractor.py   # PDF情報抽出
-│   │   │   └── excel_writer.py    # Excel POP生成
-│   │   └── models/          # データモデル
-│   ├── templates/           # Excelテンプレート
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── components/      # Reactコンポーネント
-│   │   ├── pages/           # ページコンポーネント
-│   │   └── services/        # API通信
-│   └── package.json
-├── .devcontainer/
-│   └── devcontainer.json
-├── DESIGN.md
-└── README.md
-```
-
-## 技術的な注意事項
-
-### PDF処理
-- 対象PDFは画像ベース（埋め込みテキストなし）
-- Claude Vision APIによる処理が必須（OCRでは精度不十分）
-
-### Excel処理
-- テンプレートはDrawingML（XML）で描画要素を管理
-- PythonのElementTreeはXML名前空間プレフィックスを破損するため使用禁止
-- 正規表現による文字列操作でXMLを直接編集する
+## 使い方
+1. ブラウザでアプリにアクセス
+2. 商品案内PDFをアップロード
+3. 抽出された商品一覧から、POPにしたい商品を選択
+4. テンプレートを選択
+5. 税率を確認（8% or 10%）
+6. 「POP生成」ボタンをクリック
+7. 完成したExcelをダウンロード
+## 開発フェーズ
+| Phase | 内容 | 状態 |
+|-------|------|------|
+| Phase 1 | PDF情報抽出の検証 | 完了 |
+| Phase 2 | Excelテンプレート差し替え検証 | 完了 |
+| Phase 3 | バックエンドAPI開発 | 未着手 |
+| Phase 4 | フロントエンドUI開発 | 未着手 |
+| Phase 5 | テンプレート管理・税率管理 | 未着手 |
+| Phase 6 | テスト・デプロイ | 未着手 |
+## ライセンス
+Private - 社内利用専用
