@@ -1,12 +1,24 @@
 # POP Generator - セブンイレブン POP自動生成アプリ
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/osamu-sej/ai-pop-studio)
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/osamu-sej/ai-pop-studio?quickstart=1)
 
 商品案内PDFから商品情報を自動抽出し、Excelテンプレートに挿入してPOPを生成するWebアプリケーション。
 
 ## クイックスタート
 
-上の **「Open in GitHub Codespaces」** ボタンをクリックするだけで、ブラウザ上で開発環境が自動構築され、アプリが起動します。
+### 方法1: Render にデプロイ（推奨）
+
+上の **「Deploy to Render」** ボタンをクリックすると、無料でクラウド上にアプリがデプロイされます。
+
+1. ボタンをクリック → Render のセットアップ画面が開きます
+2. GitHub アカウントで認証
+3. 自動的にビルド・デプロイされます
+4. 発行されたURLからアプリにアクセスできます
+
+### 方法2: GitHub Codespaces
+
+**「Open in GitHub Codespaces」** ボタンをクリックすると、ブラウザ上で開発環境が自動構築されます。
 
 1. ボタンをクリック → Codespace が作成されます
 2. 依存関係が自動インストールされます
@@ -36,7 +48,7 @@
 | バックエンド | Python + FastAPI |
 | PDF解析 | PyMuPDF + Claude Vision API |
 | Excel操作 | openpyxl + XML直接操作 |
-| デプロイ | GitHub Codespaces |
+| デプロイ | Render / GitHub Codespaces |
 ## プロジェクト構成
 ```
 pop-generator/

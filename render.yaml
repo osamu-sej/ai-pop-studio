@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ai-pop-studio
+    runtime: python
+    buildCommand: bash build.sh
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: NODE_VERSION
+        value: "20"
+      - key: TAX_RATE_REDUCED
+        value: "1.08"
+      - key: TAX_RATE_STANDARD
+        value: "1.10"
