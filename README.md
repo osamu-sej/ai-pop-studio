@@ -1,5 +1,18 @@
 # POP Generator - セブンイレブン POP自動生成アプリ
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/osamu-sej/ai-pop-studio?quickstart=1)
+
 商品案内PDFから商品情報を自動抽出し、Excelテンプレートに挿入してPOPを生成するWebアプリケーション。
+
+## クイックスタート
+
+上の **「Open in GitHub Codespaces」** ボタンをクリックするだけで、ブラウザ上で開発環境が自動構築され、アプリが起動します。
+
+1. ボタンをクリック → Codespace が作成されます
+2. 依存関係が自動インストールされます
+3. フロントエンド（React）とバックエンド（FastAPI）が自動起動します
+4. ブラウザが自動で開き、アプリが使えます
+
 ## 概要
 セブンイレブンの新商品POPを作成する作業を自動化します。
 **従来のワークフロー（手作業）:**
@@ -61,9 +74,10 @@ pop-generator/
 └── .env.example           # 環境変数サンプル
 ```
 ## セットアップ
-### GitHub Codespaces
-1. リポジトリを開き「Code」→「Codespaces」→「Create codespace」
-2. 自動的に開発環境がセットアップされます
+### GitHub Codespaces（推奨）
+1. 上部の [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/osamu-sej/ai-pop-studio?quickstart=1) ボタンをクリック
+2. 自動的に開発環境がセットアップされ、アプリが起動します
+3. ポート 5173 でフロントエンドが自動的にブラウザで開きます
 ### 手動セットアップ
 ```bash
 # バックエンド
