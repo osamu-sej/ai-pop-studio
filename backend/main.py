@@ -6,14 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from routers import pdf, pop, templates
+from routers import images, bento
+from services.storage import IMAGES_DIR
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
-app = FastAPI(title="POP Generator API", version="0.1.0")
+app = FastAPI(title="Bento Composer API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,14 +24,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(pdf.router, prefix="/api/pdf", tags=["PDF"])
-app.include_router(pop.router, prefix="/api/pop", tags=["POP"])
-app.include_router(templates.router, prefix="/api/templates", tags=["Templates"])
+app.include_router(images.router, prefix="/api/images", tags=["Images"])
+app.include_router(bento.router, prefix="/api/bento", tags=["Bento"])
 
 
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+# 生成画像を配信（storage/images/ -> /media/images/）
+IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/media/images", StaticFiles(directory=IMAGES_DIR), name="media-images")
 
 
 # 本番環境: ビルド済みフロントエンドを配信

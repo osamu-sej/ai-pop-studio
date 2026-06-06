@@ -41,6 +41,9 @@ frontend/dist/
 uploads/
 output/
 
+# 生成画像・弁当配置の永続化データ
+backend/storage/
+
 # Temp
 *.tmp
 *.bak

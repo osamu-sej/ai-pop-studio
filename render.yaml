@@ -9,7 +9,3 @@ services:
         value: "3.12.0"
       - key: NODE_VERSION
         value: "20"
-      - key: TAX_RATE_REDUCED
-        value: "1.08"
-      - key: TAX_RATE_STANDARD
-        value: "1.10"

@@ -1,111 +1,110 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
-import PdfUploader from "./components/PdfUploader";
-import ProductList from "./components/ProductList";
-import type { Product } from "./components/ProductList";
-import TemplateSelector from "./components/TemplateSelector";
-import type { Template } from "./components/TemplateSelector";
-import PopPreview from "./components/PopPreview";
-import PopPanel from "./components/PopPanel";
-import { parsePdf, getTemplates, generatePop } from "./api/client";
+import ImageGenerator from "./components/ImageGenerator";
+import ImageLibrary from "./components/ImageLibrary";
+import BentoBox from "./components/BentoBox";
+import type { StoredImage } from "./api/client";
+import {
+  listImages,
+  deleteImage,
+  getBento,
+  saveBento,
+} from "./api/client";
 
 function App() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState("");
-  const [parsing, setParsing] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [images, setImages] = useState<StoredImage[]>([]);
+  const [layout, setLayout] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
-  const [editingProductIndex, setEditingProductIndex] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
+  // 初期ロード: 保管画像と弁当配置
   useEffect(() => {
-    getTemplates()
-      .then((data) => {
-        setTemplates(data.templates);
-        if (data.templates.length > 0) {
-          setSelectedTemplate(data.templates[0].template_id);
-        }
+    Promise.all([listImages(), getBento()])
+      .then(([imgs, bento]) => {
+        setImages(imgs);
+        setLayout(bento.compartments ?? {});
+        setSavedAt(bento.updated_at ?? null);
       })
-      .catch(() => {
-        setError("テンプレート一覧の取得に失敗しました。バックエンドが起動しているか確認してください。");
-      });
+      .catch((e) => setError((e as Error).message));
   }, []);
 
-  const handleUpload = async (file: File) => {
-    setParsing(true);
-    setError(null);
+  const imagesById = useMemo(() => {
+    const map: Record<string, StoredImage> = {};
+    for (const img of images) map[img.id] = img;
+    return map;
+  }, [images]);
+
+  const handleGenerated = (image: StoredImage) => {
+    setImages((prev) => [image, ...prev]);
+  };
+
+  const handleDeleteImage = async (id: string) => {
     try {
-      const data = await parsePdf(file);
-      setProducts(
-        data.products.map(
-          (p: Record<string, unknown>) => ({
-            product_name: p.product_name ?? "",
-            selling_price: p.selling_price ?? 0,
-            description: p.description ?? "",
-            recommendation: (p.description as string) ?? "",
-            photo_base64: p.photo_base64 ?? "",
-            page_number: p.page_number ?? 0,
-            selected: true,
-            tax_rate: 1.08,
-          }) as Product
-        )
-      );
+      await deleteImage(id);
+      setImages((prev) => prev.filter((i) => i.id !== id));
+      // 配置からも除去
+      setLayout((prev) => {
+        const next = { ...prev };
+        for (const slot of Object.keys(next)) {
+          if (next[slot] === id) delete next[slot];
+        }
+        return next;
+      });
     } catch (e) {
-      setError("PDF解析に失敗しました: " + (e as Error).message);
-    } finally {
-      setParsing(false);
+      setError((e as Error).message);
     }
   };
 
-  const handleToggle = (index: number) => {
-    setProducts((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, selected: !p.selected } : p))
-    );
-  };
-
-  const handleUpdate = (
-    index: number,
-    field: keyof Product,
-    value: unknown
+  // 仕切りへドロップ
+  const handleDrop = (
+    compartmentId: string,
+    imageId: string,
+    fromCompartment?: string
   ) => {
-    setProducts((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, [field]: value } : p))
-    );
+    setLayout((prev) => {
+      const next = { ...prev };
+      // 別の仕切りからの移動なら元を空にする（入れ替え対応）
+      if (fromCompartment && fromCompartment !== compartmentId) {
+        const displaced = next[compartmentId];
+        next[fromCompartment] = displaced ?? "";
+        if (!displaced) delete next[fromCompartment];
+      }
+      next[compartmentId] = imageId;
+      return next;
+    });
   };
 
-  const handleUpdatePhoto = (index: number, newPhoto: string) => {
-    handleUpdate(index, "photo_base64", newPhoto);
+  const handleClear = (compartmentId: string) => {
+    setLayout((prev) => {
+      const next = { ...prev };
+      delete next[compartmentId];
+      return next;
+    });
   };
 
-  const handleGenerate = async () => {
-    const selected = products.filter((p) => p.selected);
-    if (selected.length === 0) return;
-
-    setGenerating(true);
+  const handleSave = async () => {
+    setSaving(true);
     setError(null);
     try {
-      const blob = await generatePop(selectedTemplate, selected);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "pop_output.xlsx";
-      a.click();
-      URL.revokeObjectURL(url);
+      const result = await saveBento(layout);
+      setSavedAt(result.updated_at);
     } catch (e) {
-      setError("POP生成に失敗しました: " + (e as Error).message);
+      setError((e as Error).message);
     } finally {
-      setGenerating(false);
+      setSaving(false);
     }
   };
 
-  const canGenerate =
-    products.some((p) => p.selected) && selectedTemplate !== "";
+  const filledCount = Object.values(layout).filter(Boolean).length;
 
   return (
     <div className="app">
       <header className="app-header">
-        <h1>POP Generator</h1>
-        <p className="subtitle">セブンイレブン POP自動生成</p>
+        <h1>🍱 幕の内弁当コンポーザー</h1>
+        <p className="subtitle">
+          画像を生成して保管し、仕切りごとに盛り付けてオリジナルのお弁当を組み立てよう
+        </p>
       </header>
 
       {error && (
@@ -119,32 +118,37 @@ function App() {
 
       <div className="app-content">
         <div className="app-left">
-          <PdfUploader onUpload={handleUpload} loading={parsing} />
-          <ProductList
-            products={products}
-            onToggle={handleToggle}
-            onUpdate={handleUpdate}
-          />
-          <TemplateSelector
-            templates={templates}
-            selected={selectedTemplate}
-            onSelect={setSelectedTemplate}
-          />
-          <PopPreview
-            canGenerate={canGenerate}
-            onGenerate={handleGenerate}
-            generating={generating}
-          />
+          <ImageGenerator onGenerated={handleGenerated} onError={setError} />
+          <ImageLibrary images={images} onDelete={handleDeleteImage} />
         </div>
 
         <div className="app-right">
-          <PopPanel
-            products={products}
-            editingIndex={editingProductIndex}
-            onEditImage={setEditingProductIndex}
-            onUpdatePhoto={handleUpdatePhoto}
-            onCloseEditor={() => setEditingProductIndex(null)}
-          />
+          <section className="panel">
+            <div className="bento-header">
+              <h2 className="panel-title">③ お弁当を盛り付け</h2>
+              <div className="bento-actions">
+                <span className="bento-count">{filledCount} / 6 仕切り</span>
+                <button
+                  className="primary-btn save-btn"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving ? "保存中…" : "献立を保存"}
+                </button>
+              </div>
+            </div>
+            {savedAt && (
+              <p className="saved-note">
+                保存済み: {new Date(savedAt).toLocaleString("ja-JP")}
+              </p>
+            )}
+            <BentoBox
+              layout={layout}
+              imagesById={imagesById}
+              onDrop={handleDrop}
+              onClear={handleClear}
+            />
+          </section>
         </div>
       </div>
     </div>
