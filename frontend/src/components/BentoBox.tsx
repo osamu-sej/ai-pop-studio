@@ -1,9 +1,10 @@
 import { useState } from "react";
 import type { StoredImage } from "../api/client";
-import { COMPARTMENTS } from "../bento";
+import type { BentoPreset } from "../bento";
 import { DRAG_MIME } from "../dnd";
 
 interface Props {
+  preset: BentoPreset;
   // 仕切りID -> 画像ID
   layout: Record<string, string>;
   imagesById: Record<string, StoredImage>;
@@ -11,22 +12,37 @@ interface Props {
   onClear: (compartmentId: string) => void;
 }
 
-export default function BentoBox({ layout, imagesById, onDrop, onClear }: Props) {
+export default function BentoBox({
+  preset,
+  layout,
+  imagesById,
+  onDrop,
+  onClear,
+}: Props) {
   const [dragOver, setDragOver] = useState<string | null>(null);
 
   return (
     <div className="bento-wrap">
-      <div className="bento-box">
-        {COMPARTMENTS.map((c) => {
+      <div
+        className="bento-box"
+        style={{
+          gridTemplateColumns: preset.columns,
+          gridTemplateRows: preset.rows,
+          gridTemplateAreas: preset.areas,
+          aspectRatio: preset.aspectRatio,
+        }}
+      >
+        {preset.compartments.map((c) => {
           const imageId = layout[c.id];
           const image = imageId ? imagesById[imageId] : undefined;
           const isOver = dragOver === c.id;
           return (
             <div
               key={c.id}
-              className={`compartment compartment-${c.id} ${isOver ? "compartment-over" : ""} ${
+              className={`compartment ${isOver ? "compartment-over" : ""} ${
                 image ? "compartment-filled" : ""
               }`}
+              style={{ gridArea: c.id }}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "copy";

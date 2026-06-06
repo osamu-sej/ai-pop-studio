@@ -89,22 +89,30 @@ def delete_image(image_id: str) -> bool:
 
 
 def get_bento() -> dict[str, Any]:
-    """弁当レイアウト（仕切りID -> 画像ID のマップ）を返す。"""
+    """弁当レイアウト（プリセットID と 仕切りID -> 画像ID のマップ）を返す。"""
     with _lock:
         if not BENTO_FILE.exists():
-            return {"compartments": {}, "updated_at": None}
+            return {"preset": None, "compartments": {}, "updated_at": None}
         try:
-            return json.loads(BENTO_FILE.read_text(encoding="utf-8"))
+            data = json.loads(BENTO_FILE.read_text(encoding="utf-8"))
+            data.setdefault("preset", None)
+            return data
         except (json.JSONDecodeError, OSError):
-            return {"compartments": {}, "updated_at": None}
+            return {"preset": None, "compartments": {}, "updated_at": None}
 
 
-def save_bento(compartments: dict[str, str | None]) -> dict[str, Any]:
+def save_bento(
+    preset: str | None, compartments: dict[str, str | None]
+) -> dict[str, Any]:
     """弁当レイアウトを保存する。値が None の仕切りは除外。"""
     with _lock:
         _ensure_dirs()
         cleaned = {k: v for k, v in compartments.items() if v}
-        data = {"compartments": cleaned, "updated_at": _now_iso()}
+        data = {
+            "preset": preset,
+            "compartments": cleaned,
+            "updated_at": _now_iso(),
+        }
         BENTO_FILE.write_text(
             json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
         )

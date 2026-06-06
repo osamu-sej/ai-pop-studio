@@ -253,44 +253,55 @@
   color: #a89880;
 }
 
+/* ---- プリセット選択 ---- */
+.preset-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.preset-label {
+  font-size: 0.85rem;
+  color: #8a7a68;
+}
+
+.preset-chips {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.preset-chip {
+  border: 1px solid #d8cab4;
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.82rem;
+  color: #6a5a48;
+}
+
+.preset-chip-active {
+  background: #6f441f;
+  border-color: #6f441f;
+  color: #fff;
+}
+
 .bento-wrap {
   margin-top: 0.9rem;
 }
 
 .bento-box {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr;
-  grid-template-rows: repeat(3, 1fr);
-  grid-template-areas:
-    "rice main main"
-    "rice side1 side2"
-    "rice side3 pickles";
+  /* grid-template-columns / rows / areas / aspect-ratio はプリセットから
+     インラインスタイルで指定する（BentoBox.tsx 参照） */
   gap: 8px;
-  aspect-ratio: 3 / 2;
   background: #8a5a32;
   border: 10px solid #6f441f;
   border-radius: 14px;
   padding: 8px;
   box-shadow: 0 6px 16px rgba(70, 45, 20, 0.25);
-}
-
-.compartment-rice {
-  grid-area: rice;
-}
-.compartment-main {
-  grid-area: main;
-}
-.compartment-side1 {
-  grid-area: side1;
-}
-.compartment-side2 {
-  grid-area: side2;
-}
-.compartment-side3 {
-  grid-area: side3;
-}
-.compartment-pickles {
-  grid-area: pickles;
 }
 
 .compartment {

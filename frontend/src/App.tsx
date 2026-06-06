@@ -3,6 +3,7 @@ import "./App.css";
 import ImageGenerator from "./components/ImageGenerator";
 import ImageLibrary from "./components/ImageLibrary";
 import BentoBox from "./components/BentoBox";
+import PresetSelector from "./components/PresetSelector";
 import type { StoredImage } from "./api/client";
 import {
   listImages,
@@ -10,19 +11,24 @@ import {
   getBento,
   saveBento,
 } from "./api/client";
+import { DEFAULT_PRESET_ID, getPreset } from "./bento";
 
 function App() {
   const [images, setImages] = useState<StoredImage[]>([]);
+  const [presetId, setPresetId] = useState<string>(DEFAULT_PRESET_ID);
   const [layout, setLayout] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  const preset = useMemo(() => getPreset(presetId), [presetId]);
 
   // 初期ロード: 保管画像と弁当配置
   useEffect(() => {
     Promise.all([listImages(), getBento()])
       .then(([imgs, bento]) => {
         setImages(imgs);
+        if (bento.preset) setPresetId(bento.preset);
         setLayout(bento.compartments ?? {});
         setSavedAt(bento.updated_at ?? null);
       })
@@ -56,6 +62,20 @@ function App() {
     }
   };
 
+  // 弁当箱プリセットの切り替え。新プリセットに存在しない仕切りの配置は破棄する。
+  const handleSelectPreset = (nextPresetId: string) => {
+    if (nextPresetId === presetId) return;
+    const validIds = new Set(getPreset(nextPresetId).compartments.map((c) => c.id));
+    setLayout((prev) => {
+      const next: Record<string, string> = {};
+      for (const [slot, imgId] of Object.entries(prev)) {
+        if (validIds.has(slot)) next[slot] = imgId;
+      }
+      return next;
+    });
+    setPresetId(nextPresetId);
+  };
+
   // 仕切りへドロップ
   const handleDrop = (
     compartmentId: string,
@@ -67,8 +87,11 @@ function App() {
       // 別の仕切りからの移動なら元を空にする（入れ替え対応）
       if (fromCompartment && fromCompartment !== compartmentId) {
         const displaced = next[compartmentId];
-        next[fromCompartment] = displaced ?? "";
-        if (!displaced) delete next[fromCompartment];
+        if (displaced) {
+          next[fromCompartment] = displaced;
+        } else {
+          delete next[fromCompartment];
+        }
       }
       next[compartmentId] = imageId;
       return next;
@@ -87,7 +110,7 @@ function App() {
     setSaving(true);
     setError(null);
     try {
-      const result = await saveBento(layout);
+      const result = await saveBento(presetId, layout);
       setSavedAt(result.updated_at);
     } catch (e) {
       setError((e as Error).message);
@@ -96,7 +119,8 @@ function App() {
     }
   };
 
-  const filledCount = Object.values(layout).filter(Boolean).length;
+  const totalSlots = preset.compartments.length;
+  const filledCount = preset.compartments.filter((c) => layout[c.id]).length;
 
   return (
     <div className="app">
@@ -127,7 +151,9 @@ function App() {
             <div className="bento-header">
               <h2 className="panel-title">③ お弁当を盛り付け</h2>
               <div className="bento-actions">
-                <span className="bento-count">{filledCount} / 6 仕切り</span>
+                <span className="bento-count">
+                  {filledCount} / {totalSlots} 仕切り
+                </span>
                 <button
                   className="primary-btn save-btn"
                   onClick={handleSave}
@@ -137,12 +163,14 @@ function App() {
                 </button>
               </div>
             </div>
+            <PresetSelector selected={presetId} onSelect={handleSelectPreset} />
             {savedAt && (
               <p className="saved-note">
                 保存済み: {new Date(savedAt).toLocaleString("ja-JP")}
               </p>
             )}
             <BentoBox
+              preset={preset}
               layout={layout}
               imagesById={imagesById}
               onDrop={handleDrop}

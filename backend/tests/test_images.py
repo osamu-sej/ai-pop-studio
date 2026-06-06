@@ -83,20 +83,32 @@ def test_bento_save_and_get(client):
 
     put = client.put(
         "/api/bento",
-        json={"compartments": {"rice": image_id, "main": None}},
+        json={"preset": "makunouchi", "compartments": {"rice": image_id, "main": None}},
     )
     assert put.status_code == 200
     # None の仕切りは保存されない
     assert put.json()["compartments"] == {"rice": image_id}
+    assert put.json()["preset"] == "makunouchi"
 
     get = client.get("/api/bento")
     assert get.json()["compartments"] == {"rice": image_id}
+    assert get.json()["preset"] == "makunouchi"
+
+
+def test_bento_default_has_preset_key(client):
+    # 未保存でも preset キーを含む
+    get = client.get("/api/bento")
+    assert get.json()["preset"] is None
+    assert get.json()["compartments"] == {}
 
 
 def test_deleting_image_clears_bento_slot(client):
     gen = client.post("/api/images/generate", json={"prompt": "煮物"})
     image_id = gen.json()["id"]
-    client.put("/api/bento", json={"compartments": {"side1": image_id}})
+    client.put(
+        "/api/bento",
+        json={"preset": "makunouchi", "compartments": {"side1": image_id}},
+    )
 
     client.delete(f"/api/images/{image_id}")
     get = client.get("/api/bento")

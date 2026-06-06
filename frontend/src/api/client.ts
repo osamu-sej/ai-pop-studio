@@ -9,6 +9,7 @@ export interface StoredImage {
 }
 
 export interface BentoLayout {
+  preset: string | null;
   compartments: Record<string, string>;
   updated_at: string | null;
 }
@@ -48,12 +49,13 @@ export async function getBento(): Promise<BentoLayout> {
 }
 
 export async function saveBento(
+  preset: string,
   compartments: Record<string, string | null>
 ): Promise<BentoLayout> {
   const res = await fetch(`${API_BASE}/bento`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ compartments }),
+    body: JSON.stringify({ preset, compartments }),
   });
   if (!res.ok) throw new Error(`弁当配置の保存に失敗しました (${res.status})`);
   return res.json();
