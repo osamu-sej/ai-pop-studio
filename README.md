@@ -90,6 +90,20 @@ multi-host podcast scripts. The status pill in the top-right shows live engine s
 make serve            # builds the frontend and serves the whole app on :8000
 ```
 
+### Run with Docker (fully self-hosted, API-free)
+
+One command brings up Aurora **and** a local Ollama for the models:
+
+```bash
+docker compose up -d --build
+docker compose exec ollama ollama pull llama3.1:8b
+docker compose exec ollama ollama pull nomic-embed-text
+# open http://localhost:8000
+```
+
+Everything runs on your box — no API keys, nothing leaves the machine. Aurora
+still works if you skip the model pulls (heuristic fallback), just at lower quality.
+
 ---
 
 ## 🎛️ Choosing your AI engine
@@ -121,8 +135,9 @@ Optional local **Whisper** transcribes **audio/video**. Select which sources are
 "in context" for chat and studio.
 
 **Chat** — hybrid **semantic + keyword** retrieval grounds every answer in your
-sources, with expandable **citations** showing the exact supporting snippet and a
-relevance score.
+sources, **streamed token-by-token** (SSE), with expandable **citations** showing
+the exact supporting snippet and a relevance score, plus **source-grounded
+suggested questions** to get you started.
 
 **Studio** — one-click generation, each saved as an editable note:
 Summary · Study Guide · FAQ · Timeline · Key Topics · Briefing Document · Mind Map.
@@ -132,6 +147,9 @@ debate / solo) from your sources. Script is always produced; audio is synthesize
 locally if `pyttsx3` or `piper` is installed.
 
 **Notes** — keep your own markdown notes alongside generated ones.
+
+**Export** — download an entire notebook (source summaries, notes, conversation)
+as a single **Markdown** file.
 
 ---
 
@@ -165,7 +183,7 @@ frontend/
 ## ✅ Tests
 
 ```bash
-make test       # 23 tests, fully offline (heuristic + hashing), no network
+make test       # 27 tests, fully offline (heuristic + hashing), no network
 make lint       # eslint (frontend)
 ```
 

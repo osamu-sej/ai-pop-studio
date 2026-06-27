@@ -4,7 +4,7 @@ import type { ChatMessage, Source } from '../types'
 import { Markdown } from '../lib/markdown'
 import { IconSend, IconSparkles, IconTrash } from './Icons'
 
-const SUGGESTIONS = [
+const FALLBACK_SUGGESTIONS = [
   'Give me a 5-bullet summary of these sources.',
   'What are the key arguments and who makes them?',
   'What questions do these sources leave unanswered?',
@@ -23,11 +23,27 @@ export function ChatPanel({
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [suggestions, setSuggestions] = useState<string[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     api.getChat(notebookId).then(setMessages)
   }, [notebookId])
+
+  useEffect(() => {
+    if (sources.length === 0) {
+      setSuggestions([])
+      return
+    }
+    let active = true
+    api
+      .getSuggestions(notebookId)
+      .then((s) => active && setSuggestions(s))
+      .catch(() => active && setSuggestions([]))
+    return () => {
+      active = false
+    }
+  }, [notebookId, sources.length])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -38,33 +54,26 @@ export function ChatPanel({
     if (!text || busy) return
     setInput('')
     setBusy(true)
-    // optimistic user bubble
-    const optimistic: ChatMessage = {
-      id: `tmp-${Date.now()}`,
-      notebook_id: notebookId,
-      role: 'user',
-      content: text,
-      citations: [],
-      created_at: new Date().toISOString(),
-    }
-    setMessages((m) => [...m, optimistic])
+    const now = Date.now()
+    const streamId = `stream-${now}`
+    // optimistic user bubble + an empty assistant bubble that fills in live
+    setMessages((m) => [
+      ...m,
+      { id: `tmp-${now}`, notebook_id: notebookId, role: 'user', content: text, citations: [], created_at: new Date().toISOString() },
+      { id: streamId, notebook_id: notebookId, role: 'assistant', content: '', citations: [], created_at: new Date().toISOString() },
+    ])
+
+    const patchStream = (fn: (msg: ChatMessage) => ChatMessage) =>
+      setMessages((m) => m.map((x) => (x.id === streamId ? fn(x) : x)))
+
     try {
-      const reply = await api.sendChat(notebookId, text, selectedIds)
-      // refresh to get the persisted user message + reply in order
-      const history = await api.getChat(notebookId)
-      setMessages(history.length ? history : [optimistic, reply])
+      await api.sendChatStream(notebookId, text, selectedIds, {
+        onToken: (t) => patchStream((x) => ({ ...x, content: x.content + t })),
+        onDone: (final) => patchStream(() => final),
+        onError: (e) => patchStream((x) => ({ ...x, content: `⚠️ ${e}` })),
+      })
     } catch (e) {
-      setMessages((m) => [
-        ...m,
-        {
-          id: `err-${Date.now()}`,
-          notebook_id: notebookId,
-          role: 'assistant',
-          content: `⚠️ ${e instanceof Error ? e.message : 'Request failed'}`,
-          citations: [],
-          created_at: new Date().toISOString(),
-        },
-      ])
+      patchStream((x) => ({ ...x, content: `⚠️ ${e instanceof Error ? e.message : 'Request failed'}` }))
     } finally {
       setBusy(false)
     }
@@ -103,7 +112,7 @@ export function ChatPanel({
             </p>
             {sources.length > 0 && (
               <div className="suggestions">
-                {SUGGESTIONS.map((s) => (
+                {(suggestions.length ? suggestions : FALLBACK_SUGGESTIONS).map((s) => (
                   <button key={s} className="suggestion" onClick={() => send(s)}>
                     {s}
                   </button>
@@ -115,7 +124,15 @@ export function ChatPanel({
           messages.map((m) => (
             <div key={m.id} className={`msg msg-${m.role}`}>
               <div className="msg-bubble">
-                {m.role === 'assistant' ? <Markdown text={m.content} /> : <p>{m.content}</p>}
+                {m.role === 'assistant' ? (
+                  m.content ? (
+                    <Markdown text={m.content} />
+                  ) : (
+                    <span className="typing"><span></span><span></span><span></span></span>
+                  )
+                ) : (
+                  <p>{m.content}</p>
+                )}
               </div>
               {m.citations.length > 0 && (
                 <div className="citations">
@@ -133,13 +150,6 @@ export function ChatPanel({
               )}
             </div>
           ))
-        )}
-        {busy && (
-          <div className="msg msg-assistant">
-            <div className="msg-bubble typing">
-              <span></span><span></span><span></span>
-            </div>
-          </div>
         )}
       </div>
 

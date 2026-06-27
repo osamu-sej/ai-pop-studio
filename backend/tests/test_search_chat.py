@@ -34,3 +34,32 @@ def test_chat_without_sources_is_graceful(client, notebook):
     reply = client.post(f"/api/notebooks/{nid}/chat", json={"message": "Hello?"}).json()
     assert reply["role"] == "assistant"
     assert reply["citations"] == []
+
+
+def test_chat_streaming(client, notebook_with_source):
+    import json
+
+    nid = notebook_with_source["id"]
+    tokens, done = [], None
+    with client.stream(
+        "POST",
+        f"/api/notebooks/{nid}/chat/stream",
+        json={"message": "What about battery storage?"},
+    ) as r:
+        assert r.status_code == 200
+        for line in r.iter_lines():
+            if not line or not line.startswith("data:"):
+                continue
+            evt = json.loads(line[len("data:"):].strip())
+            if evt["type"] == "token":
+                tokens.append(evt["text"])
+            elif evt["type"] == "done":
+                done = evt["message"]
+
+    assert tokens, "expected streamed token events"
+    assert done is not None
+    assert done["role"] == "assistant"
+    assert "".join(tokens).strip() == done["content"].strip()
+    # streamed reply is also persisted exactly once
+    history = client.get(f"/api/notebooks/{nid}/chat").json()
+    assert [m["role"] for m in history][-2:] == ["user", "assistant"]

@@ -96,6 +96,48 @@ export const api = {
       body: JSON.stringify({ message, source_ids: sourceIds ?? null }),
     }),
   clearChat: (nb: string) => http<void>(`/api/notebooks/${nb}/chat`, { method: 'DELETE' }),
+  getSuggestions: (nb: string) => http<string[]>(`/api/notebooks/${nb}/chat/suggestions`),
+  sendChatStream: async (
+    nb: string,
+    message: string,
+    sourceIds: string[] | undefined,
+    handlers: {
+      onToken: (t: string) => void
+      onDone: (m: ChatMessage) => void
+      onError: (e: string) => void
+    },
+  ) => {
+    const res = await fetch(`/api/notebooks/${nb}/chat/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, source_ids: sourceIds ?? null }),
+    })
+    if (!res.ok || !res.body) {
+      handlers.onError(res.statusText || 'Stream failed')
+      return
+    }
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const blocks = buffer.split('\n\n')
+      buffer = blocks.pop() ?? ''
+      for (const block of blocks) {
+        const line = block.split('\n').find((l) => l.startsWith('data:'))
+        if (!line) continue
+        try {
+          const evt = JSON.parse(line.slice(5).trim())
+          if (evt.type === 'token') handlers.onToken(evt.text)
+          else if (evt.type === 'done') handlers.onDone(evt.message)
+        } catch {
+          /* ignore malformed chunk */
+        }
+      }
+    }
+  },
 
   // studio
   transform: (nb: string, kind: TransformKind, sourceIds?: string[]) =>

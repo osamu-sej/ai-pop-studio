@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 from .. import repositories as repo
 from ..ai import engine
 from ..config import get_settings
@@ -13,17 +15,13 @@ def _snippet(text: str, limit: int = 240) -> str:
     return text if len(text) <= limit else text[:limit].rsplit(" ", 1)[0] + "…"
 
 
-def ask(notebook_id: str, message: str, source_ids: list[str] | None = None) -> dict:
+def _retrieve(notebook_id: str, message: str, source_ids: list[str] | None):
+    """Run retrieval and build (context_blocks, citations) once for reuse."""
     settings = get_settings()
-    repo.add_chat_message(notebook_id, "user", message)
-
     hits = search.hybrid_search(
         notebook_id, message, top_k=settings.retrieval_top_k, source_ids=source_ids
     )
     context_blocks = [h["text"] for h in hits]
-    answer = engine.answer_question(message, context_blocks)
-
-    # Cite the chunks we actually retrieved (deduped by source, best first).
     citations: list[dict] = []
     seen = set()
     for h in hits:
@@ -40,8 +38,33 @@ def ask(notebook_id: str, message: str, source_ids: list[str] | None = None) -> 
         })
         if len(citations) >= 5:
             break
+    return context_blocks, citations
 
+
+def ask(notebook_id: str, message: str, source_ids: list[str] | None = None) -> dict:
+    repo.add_chat_message(notebook_id, "user", message)
+    context_blocks, citations = _retrieve(notebook_id, message, source_ids)
+    answer = engine.answer_question(message, context_blocks)
     return repo.add_chat_message(notebook_id, "assistant", answer, citations)
+
+
+def ask_stream(notebook_id: str, message: str,
+               source_ids: list[str] | None = None) -> Iterator[dict]:
+    """Generator of SSE-ready events: {'type': 'token'|'done', ...}.
+
+    Persists the user message up front and the full assistant message at the end.
+    """
+    repo.add_chat_message(notebook_id, "user", message)
+    context_blocks, citations = _retrieve(notebook_id, message, source_ids)
+
+    parts: list[str] = []
+    for delta in engine.answer_question_stream(message, context_blocks):
+        parts.append(delta)
+        yield {"type": "token", "text": delta}
+
+    full = "".join(parts).strip()
+    saved = repo.add_chat_message(notebook_id, "assistant", full, citations)
+    yield {"type": "done", "message": saved}
 
 
 def history(notebook_id: str) -> list[dict]:

@@ -8,6 +8,7 @@ never has to care which path was taken.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 
 from . import heuristics, prompts
 from .llm import get_llm
@@ -39,6 +40,35 @@ def answer_question(question: str, context_blocks: list[str]) -> str:
     return heuristics.answer(question, context_blocks)
 
 
+def answer_question_stream(question: str, context_blocks: list[str]) -> Iterator[str]:
+    """Yield the answer incrementally (real streaming if a model is available)."""
+    llm = get_llm()
+    if context_blocks and llm.available():
+        try:
+            messages = [
+                {"role": "system", "content": prompts.RAG_SYSTEM},
+                {"role": "user", "content": prompts.rag_user_prompt(question, context_blocks)},
+            ]
+            produced = False
+            for delta in llm.stream(messages, max_tokens=900):
+                produced = True
+                yield delta
+            if produced:
+                return
+        except Exception:
+            pass
+    # Heuristic path: compute then emit in word groups so the UI still "types".
+    text = heuristics.answer(question, context_blocks)
+    yield from _chunk_words(text)
+
+
+def _chunk_words(text: str, group: int = 4) -> Iterator[str]:
+    words = text.split(" ")
+    for i in range(0, len(words), group):
+        chunk = " ".join(words[i:i + group])
+        yield chunk if i == 0 else " " + chunk
+
+
 def transform(kind: str, text: str) -> str:
     text = _truncate(text, 24000)
     llm = get_llm()
@@ -57,6 +87,31 @@ def transform(kind: str, text: str) -> str:
         "mindmap": heuristics.mindmap,
     }.get(kind, lambda t: "## Summary\n\n" + heuristics.summarize(t, 6))
     return fn(text)
+
+
+def suggest_questions(text: str, n: int = 4) -> list[str]:
+    text = _truncate(text, 12000)
+    llm = get_llm()
+    if llm.available():
+        try:
+            msgs = [
+                {"role": "system", "content": "Propose insightful questions a reader would ask "
+                                              "about the material. Return ONLY the questions, one "
+                                              "per line, no numbering."},
+                {"role": "user", "content": text},
+            ]
+            raw = llm.chat(msgs, max_tokens=240, temperature=0.5)
+            lines = [
+                ln.strip(" -•0123456789.").strip()
+                for ln in raw.splitlines()
+                if "?" in ln
+            ]
+            lines = [ln for ln in lines if ln]
+            if lines:
+                return lines[:n]
+        except Exception:
+            pass
+    return heuristics.suggested_questions(text, n)
 
 
 def summarize_source(text: str) -> str:

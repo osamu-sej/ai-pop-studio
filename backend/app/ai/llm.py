@@ -11,6 +11,9 @@ caller which path to take.
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterator
+
 import httpx
 
 from ..config import get_settings
@@ -25,6 +28,11 @@ class BaseLLM:
     def chat(self, messages: list[dict], temperature: float | None = None,
              max_tokens: int = 1024) -> str:  # pragma: no cover - interface
         raise NotImplementedError
+
+    def stream(self, messages: list[dict], temperature: float | None = None,
+               max_tokens: int = 1024) -> Iterator[str]:
+        """Yield response deltas. Default: a single chunk from chat()."""
+        yield self.chat(messages, temperature, max_tokens)
 
 
 class OllamaLLM(BaseLLM):
@@ -58,6 +66,34 @@ class OllamaLLM(BaseLLM):
         r.raise_for_status()
         data = r.json()
         return (data.get("message") or {}).get("content", "").strip()
+
+    def stream(self, messages: list[dict], temperature: float | None = None,
+               max_tokens: int = 1024) -> Iterator[str]:
+        settings = get_settings()
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "stream": True,
+            "options": {
+                "temperature": settings.llm_temperature if temperature is None else temperature,
+                "num_predict": max_tokens,
+            },
+        }
+        with httpx.stream("POST", f"{self.base_url}/api/chat", json=payload,
+                          timeout=self.timeout) as r:
+            r.raise_for_status()
+            for line in r.iter_lines():
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except Exception:
+                    continue
+                delta = (obj.get("message") or {}).get("content", "")
+                if delta:
+                    yield delta
+                if obj.get("done"):
+                    break
 
 
 class OpenAICompatibleLLM(BaseLLM):
@@ -100,6 +136,33 @@ class OpenAICompatibleLLM(BaseLLM):
         r.raise_for_status()
         data = r.json()
         return data["choices"][0]["message"]["content"].strip()
+
+    def stream(self, messages: list[dict], temperature: float | None = None,
+               max_tokens: int = 1024) -> Iterator[str]:
+        settings = get_settings()
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": settings.llm_temperature if temperature is None else temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+        with httpx.stream("POST", f"{self.base_url}/chat/completions",
+                          headers=self._headers(), json=payload, timeout=self.timeout) as r:
+            r.raise_for_status()
+            for line in r.iter_lines():
+                if not line or not line.startswith("data:"):
+                    continue
+                data = line[len("data:"):].strip()
+                if data == "[DONE]":
+                    break
+                try:
+                    obj = json.loads(data)
+                    delta = obj["choices"][0]["delta"].get("content", "")
+                except Exception:
+                    continue
+                if delta:
+                    yield delta
 
 
 def build_llm() -> BaseLLM:

@@ -158,6 +158,16 @@ def key_topics(text: str) -> str:
     return "## Key Topics\n\n" + "\n".join(f"- {k}" for k in kws)
 
 
+def suggested_questions(text: str, n: int = 4) -> list[str]:
+    kws = top_keywords(text, n + 2)
+    questions = [f"What do the sources say about {kw}?" for kw in kws[:n]]
+    if questions:
+        questions[0] = "Give me a concise summary of these sources."
+    while len(questions) < n:
+        questions.append("What are the most important takeaways?")
+    return questions[:n]
+
+
 def podcast_script(text: str, speaker_a: str, speaker_b: str, turns: int = 12) -> list[dict]:
     """Build a two-host dialogue from the most salient sentences."""
     summary_sentences = split_sentences(summarize(text, max_sentences=turns))

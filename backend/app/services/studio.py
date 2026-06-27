@@ -46,6 +46,48 @@ def run_transformation(notebook_id: str, kind: str, source_ids: list[str] | None
     return {"kind": kind, "title": title, "content": content, "note_id": note_id}
 
 
+def export_markdown(notebook_id: str) -> tuple[str, str]:
+    """Build a single Markdown document of the whole notebook. Returns (filename, text)."""
+    nb = repo.get_notebook(notebook_id)
+    name = nb["name"] if nb else "notebook"
+    sources = repo.list_sources(notebook_id)
+    notes = repo.list_notes(notebook_id)
+    chat = repo.list_chat_messages(notebook_id)
+
+    lines = [f"# {nb['emoji'] if nb else '📓'} {name}", ""]
+    if nb and nb.get("description"):
+        lines += [nb["description"], ""]
+
+    lines += [f"## Sources ({len(sources)})", ""]
+    for s in sources:
+        lines.append(f"### {s['title']}  \n*{s['source_type']}{' · ' + s['origin'] if s['origin'] else ''}*")
+        if s.get("summary"):
+            lines += ["", s["summary"]]
+        lines.append("")
+
+    if notes:
+        lines += [f"## Notes ({len(notes)})", ""]
+        for n in notes:
+            tag = "✨ " if n["note_type"] == "generated" else ""
+            lines += [f"### {tag}{n['title']}", "", n["content"], ""]
+
+    if chat:
+        lines += ["## Conversation", ""]
+        for m in chat:
+            who = "**You**" if m["role"] == "user" else "**Aurora**"
+            lines += [f"{who}: {m['content']}", ""]
+
+    filename = "".join(c if c.isalnum() or c in " -_" else "_" for c in name).strip() or "notebook"
+    return f"{filename}.md", "\n".join(lines)
+
+
+def suggested_questions(notebook_id: str, source_ids: list[str] | None = None) -> list[str]:
+    text, _ = _gather_text(notebook_id, source_ids)
+    if not text.strip():
+        return []
+    return engine.suggest_questions(text, n=4)
+
+
 def transcript_to_markdown(script: list[dict], title: str) -> str:
     lines = [f"# 🎙️ {title}", ""]
     for turn in script:

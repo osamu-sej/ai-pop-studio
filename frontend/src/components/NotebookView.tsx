@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import type { Notebook, ProviderStatus, Source } from '../types'
-import { IconBack } from './Icons'
+import { IconBack, IconDownload } from './Icons'
 import { SourcesPanel } from './SourcesPanel'
 import { ChatPanel } from './ChatPanel'
 import { StudioPanel } from './StudioPanel'
@@ -76,6 +76,13 @@ export function NotebookView({
         <span className="nbview-emoji">{notebook?.emoji ?? '📓'}</span>
         <h2 className="nbview-title">{notebook?.name ?? 'Notebook'}</h2>
         <div className="spacer" />
+        <a
+          className="btn btn-sm"
+          href={`/api/notebooks/${notebookId}/export`}
+          title="Export this notebook to Markdown"
+        >
+          <IconDownload width={15} height={15} /> Export
+        </a>
         <StatusPill status={status} />
       </header>
 

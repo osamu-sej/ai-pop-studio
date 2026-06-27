@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import PlainTextResponse
 
 from .. import repositories as repo
 from ..schemas import Notebook, NotebookCreate, NotebookUpdate
+from ..services import studio as studio_service
 
 router = APIRouter(prefix="/api/notebooks", tags=["notebooks"])
 
@@ -40,3 +42,15 @@ def delete_notebook(notebook_id: str):
     if not repo.get_notebook(notebook_id):
         raise HTTPException(404, "Notebook not found")
     repo.delete_notebook(notebook_id)
+
+
+@router.get("/{notebook_id}/export", response_class=PlainTextResponse)
+def export_notebook(notebook_id: str):
+    if not repo.get_notebook(notebook_id):
+        raise HTTPException(404, "Notebook not found")
+    filename, text = studio_service.export_markdown(notebook_id)
+    return PlainTextResponse(
+        text,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
