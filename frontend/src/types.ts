@@ -65,6 +65,13 @@ export interface Podcast {
   created_at: string
 }
 
+export interface NotebookGuide {
+  overview: string
+  topics: string[]
+  suggestions: string[]
+  source_count: number
+}
+
 export interface TransformResult {
   kind: string
   title: string

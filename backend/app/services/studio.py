@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .. import repositories as repo
-from ..ai import engine
+from ..ai import engine, heuristics
 from ..ai.tts import get_tts
 from ..config import get_settings
 from ..database import transaction
@@ -86,6 +86,21 @@ def suggested_questions(notebook_id: str, source_ids: list[str] | None = None) -
     if not text.strip():
         return []
     return engine.suggest_questions(text, n=4)
+
+
+def notebook_guide(notebook_id: str) -> dict:
+    """An at-a-glance overview of the whole notebook (NotebookLM-style guide)."""
+    text, sources = _gather_text(notebook_id, None)
+    if not text.strip():
+        return {"overview": "", "topics": [], "suggestions": [], "source_count": 0}
+    # topics from raw content only (exclude the injected "# title" lines)
+    raw = " ".join(s.get("content", "") for s in sources)
+    return {
+        "overview": engine.transform("summary", text),
+        "topics": heuristics.top_keywords(raw, 12),
+        "suggestions": engine.suggest_questions(text, n=4),
+        "source_count": len(sources),
+    }
 
 
 def transcript_to_markdown(script: list[dict], title: str) -> str:

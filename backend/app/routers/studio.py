@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from .. import repositories as repo
-from ..schemas import Podcast, TransformRequest, TransformResult
+from ..schemas import NotebookGuide, Podcast, TransformRequest, TransformResult
 from ..schemas import PodcastRequest
 from ..services import studio as studio_service
 
@@ -14,6 +14,13 @@ router = APIRouter(prefix="/api/notebooks/{notebook_id}/studio", tags=["studio"]
 def _require_notebook(notebook_id: str):
     if not repo.get_notebook(notebook_id):
         raise HTTPException(404, "Notebook not found")
+
+
+# ── Notebook guide (auto overview) ─────────────────────────────────────────
+@router.get("/guide", response_model=NotebookGuide)
+def guide(notebook_id: str):
+    _require_notebook(notebook_id)
+    return studio_service.notebook_guide(notebook_id)
 
 
 # ── Transformations (summary, study guide, FAQ, ...) ───────────────────────

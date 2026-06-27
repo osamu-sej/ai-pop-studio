@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
-import type { ChatMessage, Source } from '../types'
+import type { ChatMessage, NotebookGuide, Source } from '../types'
 import { Markdown } from '../lib/markdown'
 import { IconSend, IconSparkles, IconTrash } from './Icons'
 
@@ -23,26 +23,44 @@ export function ChatPanel({
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
-  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [guide, setGuide] = useState<NotebookGuide | null>(null)
+  const [guideLoading, setGuideLoading] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     api.getChat(notebookId).then(setMessages)
   }, [notebookId])
 
-  useEffect(() => {
+  const loadGuide = (force = false) => {
     if (sources.length === 0) {
-      setSuggestions([])
+      setGuide(null)
       return
     }
-    let active = true
+    if (guide && !force) return
+    setGuideLoading(true)
     api
-      .getSuggestions(notebookId)
-      .then((s) => active && setSuggestions(s))
-      .catch(() => active && setSuggestions([]))
+      .getGuide(notebookId)
+      .then(setGuide)
+      .catch(() => setGuide(null))
+      .finally(() => setGuideLoading(false))
+  }
+
+  useEffect(() => {
+    let active = true
+    if (sources.length === 0) {
+      setGuide(null)
+      return
+    }
+    setGuideLoading(true)
+    api
+      .getGuide(notebookId)
+      .then((g) => active && setGuide(g))
+      .catch(() => active && setGuide(null))
+      .finally(() => active && setGuideLoading(false))
     return () => {
       active = false
     }
+    // reload when the set of sources changes
   }, [notebookId, sources.length])
 
   useEffect(() => {
@@ -120,13 +138,38 @@ export function ChatPanel({
                 : 'Answers are grounded in your selected sources, with citations you can verify.'}
             </p>
             {sources.length > 0 && (
-              <div className="suggestions">
-                {(suggestions.length ? suggestions : FALLBACK_SUGGESTIONS).map((s) => (
-                  <button key={s} className="suggestion" onClick={() => send(s)}>
-                    {s}
-                  </button>
-                ))}
-              </div>
+              <>
+                {guideLoading && !guide && <p className="muted small">Building your notebook guide…</p>}
+                {guide && guide.overview && (
+                  <div className="guide-card">
+                    <div className="guide-head">
+                      <span>📋 Notebook guide</span>
+                      <button className="link-btn" onClick={() => loadGuide(true)} disabled={guideLoading}>
+                        {guideLoading ? 'Refreshing…' : 'Refresh'}
+                      </button>
+                    </div>
+                    <div className="guide-overview">
+                      <Markdown text={guide.overview} />
+                    </div>
+                    {guide.topics.length > 0 && (
+                      <div className="topic-chips">
+                        {guide.topics.map((t) => (
+                          <button key={t} className="topic-chip" onClick={() => send(`Tell me about ${t}.`)}>
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="suggestions">
+                  {(guide?.suggestions.length ? guide.suggestions : FALLBACK_SUGGESTIONS).map((s) => (
+                    <button key={s} className="suggestion" onClick={() => send(s)}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         ) : (

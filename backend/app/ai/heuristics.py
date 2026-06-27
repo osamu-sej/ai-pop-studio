@@ -20,7 +20,9 @@ STOPWORDS = set(
     too very can could should would may might will just about over under again further
     here there all any both each few more most other some such only own same we you they
     he she i me my our your their them us he's she's it's we're you're i'm about which who
-    whom what when where why how do does did doing have has had having""".split()
+    whom what when where why how do does did doing have has had having
+    includes include including also using used use based upon onto within via etc
+    into out off down up many much per among across""".split()
 )
 
 _WORD = re.compile(r"[A-Za-z0-9_]+|[぀-ヿ一-鿿]+")

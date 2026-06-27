@@ -142,6 +142,13 @@ class PodcastRequest(BaseModel):
     length: str = "medium"  # short | medium | long
 
 
+class NotebookGuide(BaseModel):
+    overview: str
+    topics: list[str]
+    suggestions: list[str]
+    source_count: int
+
+
 class Podcast(BaseModel):
     id: str
     notebook_id: str

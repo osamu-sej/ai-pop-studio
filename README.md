@@ -143,6 +143,9 @@ that jump to the exact supporting snippet (and a relevance score), plus
 (Ollama / OpenAI-compatible / heuristic), model, base URL and API key live, with a
 "Save & test" that reports whether the model is reachable — no env editing, no restart.
 
+**Notebook guide** — open a notebook and Aurora auto-generates an at-a-glance
+**overview**, **topic chips** (click to ask about a topic), and starter questions.
+
 **Studio** — one-click generation, each saved as an editable note:
 Summary · Study Guide · FAQ · Timeline · Key Topics · Briefing Document · Mind Map.
 
@@ -187,7 +190,7 @@ frontend/
 ## ✅ Tests
 
 ```bash
-make test       # 30 tests, fully offline (heuristic + hashing), no network
+make test       # 32 tests, fully offline (heuristic + hashing), no network
 make lint       # eslint (frontend)
 ```
 

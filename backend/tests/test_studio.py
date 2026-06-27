@@ -47,6 +47,21 @@ def test_status_endpoint(client):
     assert "embedding_provider" in s
 
 
+def test_notebook_guide(client, notebook_with_source):
+    nid = notebook_with_source["id"]
+    g = client.get(f"/api/notebooks/{nid}/studio/guide").json()
+    assert g["source_count"] == 1
+    assert len(g["overview"]) > 0
+    assert len(g["topics"]) >= 1
+    assert len(g["suggestions"]) >= 1
+
+
+def test_notebook_guide_empty(client, notebook):
+    g = client.get(f"/api/notebooks/{notebook['id']}/studio/guide").json()
+    assert g["source_count"] == 0
+    assert g["topics"] == []
+
+
 def test_suggestions(client, notebook_with_source):
     nid = notebook_with_source["id"]
     qs = client.get(f"/api/notebooks/{nid}/chat/suggestions").json()

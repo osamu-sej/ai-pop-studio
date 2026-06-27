@@ -2,6 +2,7 @@ import type {
   ChatMessage,
   Note,
   Notebook,
+  NotebookGuide,
   Podcast,
   ProviderStatus,
   SettingsUpdate,
@@ -102,6 +103,7 @@ export const api = {
     }),
   clearChat: (nb: string) => http<void>(`/api/notebooks/${nb}/chat`, { method: 'DELETE' }),
   getSuggestions: (nb: string) => http<string[]>(`/api/notebooks/${nb}/chat/suggestions`),
+  getGuide: (nb: string) => http<NotebookGuide>(`/api/notebooks/${nb}/studio/guide`),
   sendChatStream: async (
     nb: string,
     message: string,
