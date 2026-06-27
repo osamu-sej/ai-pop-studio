@@ -298,3 +298,20 @@ def get_podcast(pid: str) -> dict | None:
 def delete_podcast(pid: str) -> None:
     with transaction() as conn:
         conn.execute("DELETE FROM podcasts WHERE id = ?", (pid,))
+
+
+# ── App settings (runtime overrides) ───────────────────────────────────────
+def get_app_settings() -> dict[str, str]:
+    conn = get_connection()
+    rows = conn.execute("SELECT key, value FROM app_settings").fetchall()
+    return {r["key"]: r["value"] for r in rows}
+
+
+def set_app_settings(values: dict[str, str]) -> None:
+    with transaction() as conn:
+        for key, value in values.items():
+            conn.execute(
+                "INSERT INTO app_settings (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, value),
+            )

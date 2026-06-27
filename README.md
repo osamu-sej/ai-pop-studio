@@ -135,9 +135,13 @@ Optional local **Whisper** transcribes **audio/video**. Select which sources are
 "in context" for chat and studio.
 
 **Chat** — hybrid **semantic + keyword** retrieval grounds every answer in your
-sources, **streamed token-by-token** (SSE), with expandable **citations** showing
-the exact supporting snippet and a relevance score, plus **source-grounded
-suggested questions** to get you started.
+sources, **streamed token-by-token** (SSE), with **clickable inline `[n]` citations**
+that jump to the exact supporting snippet (and a relevance score), plus
+**source-grounded suggested questions** to get you started.
+
+**Switch AI engines from the UI** — a settings panel (⚙️) lets you change provider
+(Ollama / OpenAI-compatible / heuristic), model, base URL and API key live, with a
+"Save & test" that reports whether the model is reachable — no env editing, no restart.
 
 **Studio** — one-click generation, each saved as an editable note:
 Summary · Study Guide · FAQ · Timeline · Key Topics · Briefing Document · Mind Map.
@@ -183,7 +187,7 @@ frontend/
 ## ✅ Tests
 
 ```bash
-make test       # 27 tests, fully offline (heuristic + hashing), no network
+make test       # 30 tests, fully offline (heuristic + hashing), no network
 make lint       # eslint (frontend)
 ```
 

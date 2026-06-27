@@ -84,6 +84,15 @@ export function ChatPanel({
     setMessages([])
   }
 
+  const scrollToCite = (messageId: string, n: number) => {
+    const el = document.getElementById(`cite-${messageId}-${n}`)
+    if (!el) return
+    if (el instanceof HTMLDetailsElement) el.open = true
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    el.classList.add('cite-flash')
+    setTimeout(() => el.classList.remove('cite-flash'), 1200)
+  }
+
   const activeCount = selectedIds ? selectedIds.length : sources.length
 
   return (
@@ -126,7 +135,7 @@ export function ChatPanel({
               <div className="msg-bubble">
                 {m.role === 'assistant' ? (
                   m.content ? (
-                    <Markdown text={m.content} />
+                    <Markdown text={m.content} onCite={(n) => scrollToCite(m.id, n)} />
                   ) : (
                     <span className="typing"><span></span><span></span><span></span></span>
                   )
@@ -137,7 +146,7 @@ export function ChatPanel({
               {m.citations.length > 0 && (
                 <div className="citations">
                   {m.citations.map((c, i) => (
-                    <details key={i} className="citation">
+                    <details key={i} id={`cite-${m.id}-${i + 1}`} className="citation">
                       <summary>
                         <span className="cite-num">{i + 1}</span>
                         {c.source_title}

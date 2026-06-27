@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from ..ai import runtime
 from ..ai.embeddings import get_embedder
 from ..ai.engine import llm_mode
 from ..ai.llm import get_llm
 from ..ai.tts import get_tts
-from ..config import get_settings
-from ..schemas import ProviderStatus
+from ..schemas import ProviderStatus, SettingsUpdate, SettingsView
 
 router = APIRouter(prefix="/api", tags=["system"])
 
@@ -17,9 +17,33 @@ def health():
     return {"status": "ok"}
 
 
+def _settings_view() -> SettingsView:
+    return SettingsView(
+        llm_provider=str(runtime.value("llm_provider")),
+        llm_base_url=str(runtime.value("llm_base_url")),
+        llm_model=str(runtime.value("llm_model")),
+        llm_api_key_set=bool(runtime.value("llm_api_key")),
+        embedding_provider=str(runtime.value("embedding_provider")),
+        embedding_model=str(runtime.value("embedding_model")),
+        tts_provider=str(runtime.value("tts_provider")),
+    )
+
+
+@router.get("/settings", response_model=SettingsView)
+def get_settings_view():
+    return _settings_view()
+
+
+@router.put("/settings", response_model=ProviderStatus)
+def update_settings(body: SettingsUpdate):
+    runtime.save(body.model_dump(exclude_none=True))
+    get_llm(refresh=True)
+    get_embedder(refresh=True)
+    return status()
+
+
 @router.get("/status", response_model=ProviderStatus)
 def status():
-    settings = get_settings()
     llm = get_llm(refresh=True)
     try:
         llm_available = llm.available()
@@ -27,6 +51,8 @@ def status():
         llm_available = False
     embedder = get_embedder(refresh=True)
     tts = get_tts()
+    llm_provider = str(runtime.value("llm_provider"))
+    llm_model = str(runtime.value("llm_model"))
 
     notes: list[str] = []
     if not llm_available:
@@ -46,8 +72,8 @@ def status():
         )
 
     return ProviderStatus(
-        llm_provider=settings.llm_provider,
-        llm_model=settings.llm_model,
+        llm_provider=llm_provider,
+        llm_model=llm_model,
         llm_available=llm_available,
         llm_mode=llm_mode(),
         embedding_provider=embedder.name,

@@ -166,12 +166,17 @@ class OpenAICompatibleLLM(BaseLLM):
 
 
 def build_llm() -> BaseLLM:
+    from . import runtime
+
     s = get_settings()
-    provider = (s.llm_provider or "ollama").lower()
+    provider = str(runtime.value("llm_provider") or "ollama").lower()
+    base_url = runtime.value("llm_base_url")
+    model = runtime.value("llm_model")
+    api_key = runtime.value("llm_api_key")
     if provider == "ollama":
-        return OllamaLLM(s.llm_base_url, s.llm_model, s.llm_timeout)
+        return OllamaLLM(base_url, model, s.llm_timeout)
     if provider in {"openai", "openai-compatible", "lmstudio", "groq", "openrouter"}:
-        return OpenAICompatibleLLM(s.llm_base_url, s.llm_model, s.llm_api_key, s.llm_timeout)
+        return OpenAICompatibleLLM(base_url, model, api_key, s.llm_timeout)
     return BaseLLM()  # "heuristic" / unknown -> not available -> heuristic path
 
 

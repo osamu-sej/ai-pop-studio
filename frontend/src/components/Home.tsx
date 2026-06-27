@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import type { Notebook, ProviderStatus } from '../types'
-import { IconBook, IconPlus, IconTrash } from './Icons'
+import { IconBook, IconPlus, IconSettings, IconTrash } from './Icons'
 import { Modal } from './Modal'
 import { StatusPill } from './StatusPill'
 
@@ -10,9 +10,11 @@ const EMOJIS = ['📓', '🌍', '🔬', '📚', '💡', '🧠', '⚖️', '🚀'
 export function Home({
   status,
   onOpen,
+  onOpenSettings,
 }: {
   status: ProviderStatus | null
   onOpen: (id: string) => void
+  onOpenSettings: () => void
 }) {
   const [notebooks, setNotebooks] = useState<Notebook[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,6 +56,9 @@ export function Home({
           </div>
         </div>
         <StatusPill status={status} />
+        <button className="icon-btn" onClick={onOpenSettings} title="AI settings">
+          <IconSettings />
+        </button>
       </header>
 
       <div className="home-body">

@@ -144,18 +144,22 @@ class SentenceTransformerEmbedder(BaseEmbedder):
 
 
 def build_embedder() -> BaseEmbedder:
+    from . import runtime
+
     s = get_settings()
-    provider = (s.embedding_provider or "auto").lower()
+    provider = str(runtime.value("embedding_provider") or "auto").lower()
+    base_url = runtime.value("llm_base_url")
+    model = runtime.value("embedding_model")
     candidates: list[BaseEmbedder]
     if provider == "ollama":
-        candidates = [OllamaEmbedder(s.llm_base_url, s.embedding_model)]
+        candidates = [OllamaEmbedder(base_url, model)]
     elif provider in {"sentence-transformers", "st"}:
         candidates = [SentenceTransformerEmbedder(s.st_embedding_model)]
     elif provider == "hashing":
         candidates = [HashingEmbedder(s.embedding_dim_fallback)]
     else:  # auto
         candidates = [
-            OllamaEmbedder(s.llm_base_url, s.embedding_model),
+            OllamaEmbedder(base_url, model),
             SentenceTransformerEmbedder(s.st_embedding_model),
         ]
     for emb in candidates:

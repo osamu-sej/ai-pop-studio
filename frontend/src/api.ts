@@ -4,6 +4,8 @@ import type {
   Notebook,
   Podcast,
   ProviderStatus,
+  SettingsUpdate,
+  SettingsView,
   Source,
   SourceDetail,
   TransformKind,
@@ -32,6 +34,9 @@ async function http<T>(url: string, options?: RequestInit): Promise<T> {
 export const api = {
   // system
   status: () => http<ProviderStatus>('/api/status'),
+  getSettings: () => http<SettingsView>('/api/settings'),
+  updateSettings: (patch: SettingsUpdate) =>
+    http<ProviderStatus>('/api/settings', { method: 'PUT', body: JSON.stringify(patch) }),
 
   // notebooks
   listNotebooks: () => http<Notebook[]>('/api/notebooks'),

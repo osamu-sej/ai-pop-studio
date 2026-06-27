@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import type { Notebook, ProviderStatus, Source } from '../types'
-import { IconBack, IconDownload } from './Icons'
+import { IconBack, IconDownload, IconSettings } from './Icons'
 import { SourcesPanel } from './SourcesPanel'
 import { ChatPanel } from './ChatPanel'
 import { StudioPanel } from './StudioPanel'
@@ -11,10 +11,12 @@ export function NotebookView({
   notebookId,
   status,
   onBack,
+  onOpenSettings,
 }: {
   notebookId: string
   status: ProviderStatus | null
   onBack: () => void
+  onOpenSettings: () => void
 }) {
   const [notebook, setNotebook] = useState<Notebook | null>(null)
   const [sources, setSources] = useState<Source[]>([])
@@ -84,6 +86,9 @@ export function NotebookView({
           <IconDownload width={15} height={15} /> Export
         </a>
         <StatusPill status={status} />
+        <button className="icon-btn" onClick={onOpenSettings} title="AI settings">
+          <IconSettings />
+        </button>
       </header>
 
       <div className="panes">

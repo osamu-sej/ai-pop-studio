@@ -7,10 +7,14 @@ import type { ReactNode } from 'react'
 let keySeq = 0
 const k = () => `md-${keySeq++}`
 
-function renderInline(text: string): ReactNode[] {
+type OnCite = (n: number) => void
+
+function renderInline(text: string, onCite?: OnCite): ReactNode[] {
   const nodes: ReactNode[] = []
-  // Order matters: code first (so ** inside code is literal), then links, bold, italic.
-  const pattern = /(`[^`]+`)|(\[[^\]]+\]\([^)]+\))|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(_[^_]+_)/g
+  // Order matters: code first (so ** inside code is literal), then links, bold,
+  // italic, and finally bare [n] citation markers.
+  const pattern =
+    /(`[^`]+`)|(\[[^\]]+\]\([^)]+\))|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(_[^_]+_)|(\[\d+\])/g
   let last = 0
   let m: RegExpExecArray | null
   while ((m = pattern.exec(text)) !== null) {
@@ -18,12 +22,23 @@ function renderInline(text: string): ReactNode[] {
     const token = m[0]
     if (token.startsWith('`')) {
       nodes.push(<code key={k()} className="md-code">{token.slice(1, -1)}</code>)
-    } else if (token.startsWith('[')) {
+    } else if (token.startsWith('[') && token.includes('](')) {
       const lm = /\[([^\]]+)\]\(([^)]+)\)/.exec(token)!
       nodes.push(
         <a key={k()} href={lm[2]} target="_blank" rel="noreferrer">
           {lm[1]}
         </a>,
+      )
+    } else if (/^\[\d+\]$/.test(token)) {
+      const n = parseInt(token.slice(1, -1), 10)
+      nodes.push(
+        onCite ? (
+          <button key={k()} className="inline-cite" onClick={() => onCite(n)} title={`Source ${n}`}>
+            {n}
+          </button>
+        ) : (
+          <sup key={k()} className="inline-cite-static">{n}</sup>
+        ),
       )
     } else if (token.startsWith('**')) {
       nodes.push(<strong key={k()}>{token.slice(2, -2)}</strong>)
@@ -36,7 +51,7 @@ function renderInline(text: string): ReactNode[] {
   return nodes
 }
 
-export function Markdown({ text }: { text: string }) {
+export function Markdown({ text, onCite }: { text: string; onCite?: OnCite }) {
   const lines = (text ?? '').replace(/\r\n/g, '\n').split('\n')
   const blocks: ReactNode[] = []
   let i = 0
@@ -44,7 +59,7 @@ export function Markdown({ text }: { text: string }) {
 
   const flushPara = () => {
     if (para.length) {
-      blocks.push(<p key={k()}>{renderInline(para.join(' '))}</p>)
+      blocks.push(<p key={k()}>{renderInline(para.join(' '), onCite)}</p>)
       para = []
     }
   }
@@ -77,7 +92,7 @@ export function Markdown({ text }: { text: string }) {
       const Tag = tags[Math.min(level, 6) - 1]
       blocks.push(
         <Tag key={k()} className="md-h">
-          {renderInline(heading[2])}
+          {renderInline(heading[2], onCite)}
         </Tag>,
       )
       i++
@@ -100,7 +115,7 @@ export function Markdown({ text }: { text: string }) {
       }
       blocks.push(
         <blockquote key={k()} className="md-quote">
-          {renderInline(quote.join(' '))}
+          {renderInline(quote.join(' '), onCite)}
         </blockquote>,
       )
       continue
@@ -115,7 +130,7 @@ export function Markdown({ text }: { text: string }) {
         const content = lines[i].replace(/^\s*[-*]\s+/, '')
         items.push(
           <li key={k()} className={indented ? 'md-li-nested' : undefined}>
-            {renderInline(content)}
+            {renderInline(content, onCite)}
           </li>,
         )
         i++
@@ -129,7 +144,7 @@ export function Markdown({ text }: { text: string }) {
       flushPara()
       const items: ReactNode[] = []
       while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-        items.push(<li key={k()}>{renderInline(lines[i].replace(/^\s*\d+\.\s+/, ''))}</li>)
+        items.push(<li key={k()}>{renderInline(lines[i].replace(/^\s*\d+\.\s+/, ''), onCite)}</li>)
         i++
       }
       blocks.push(<ol key={k()} className="md-ol">{items}</ol>)

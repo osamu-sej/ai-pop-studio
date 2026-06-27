@@ -222,6 +222,18 @@ button { font-family: inherit; cursor: pointer; }
 }
 .cite-score { margin-left: auto; color: var(--text-mute); font-variant-numeric: tabular-nums; }
 .citation p { margin: 0; padding: 0 11px 11px; color: var(--text-dim); line-height: 1.55; }
+.citation.cite-flash { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+
+.inline-cite {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px; padding: 0 4px; margin: 0 2px;
+  vertical-align: super; font-size: 10px; font-weight: 700; line-height: 1;
+  border-radius: 5px; border: 1px solid rgba(34, 211, 238, 0.4);
+  background: var(--accent-soft); color: var(--accent-2); cursor: pointer;
+  transition: all 0.12s ease;
+}
+.inline-cite:hover { background: var(--accent-2); color: #04212a; }
+.inline-cite-static { color: var(--accent-2); font-size: 0.7em; padding: 0 2px; }
 
 .typing { display: inline-flex; gap: 4px; padding: 4px 2px; align-items: center; }
 .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-mute); animation: blink 1.4s infinite both; }
@@ -340,6 +352,14 @@ textarea.input { resize: vertical; line-height: 1.5; }
 }
 .choice:hover { border-color: var(--border-2); color: var(--text); }
 .choice.active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+
+.adv { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 6px; }
+.adv summary { cursor: pointer; font-size: 13px; color: var(--text-dim); padding: 8px 0; list-style: none; }
+.adv summary::-webkit-details-marker { display: none; }
+.adv summary::before { content: '▸ '; color: var(--text-mute); }
+.adv[open] summary::before { content: '▾ '; }
+.settings-note { margin-top: 14px; padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--bg); border: 1px solid var(--border); font-size: 13px; }
 
 .detail-summary { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
   padding: 14px; margin-bottom: 16px; }

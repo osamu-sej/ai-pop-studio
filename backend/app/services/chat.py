@@ -21,23 +21,19 @@ def _retrieve(notebook_id: str, message: str, source_ids: list[str] | None):
     hits = search.hybrid_search(
         notebook_id, message, top_k=settings.retrieval_top_k, source_ids=source_ids
     )
+    # Keep context_blocks and citations 1:1 and in the same order, so the answer's
+    # [n] markers line up exactly with citation n in the UI.
     context_blocks = [h["text"] for h in hits]
-    citations: list[dict] = []
-    seen = set()
-    for h in hits:
-        key = (h["source_id"], h["chunk_idx"])
-        if key in seen:
-            continue
-        seen.add(key)
-        citations.append({
+    citations = [
+        {
             "source_id": h["source_id"],
             "source_title": h["source_title"],
             "chunk_idx": h["chunk_idx"],
             "snippet": _snippet(h["text"]),
             "score": h["score"],
-        })
-        if len(citations) >= 5:
-            break
+        }
+        for h in hits
+    ]
     return context_blocks, citations
 
 

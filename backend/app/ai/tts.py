@@ -111,7 +111,9 @@ def _concat_wavs(parts: list[Path], out_path: Path) -> None:
 
 
 def build_tts() -> BaseTTS:
-    provider = (get_settings().tts_provider or "auto").lower()
+    from . import runtime
+
+    provider = str(runtime.value("tts_provider") or "auto").lower()
     if provider == "pyttsx3":
         return Pyttsx3TTS()
     if provider == "piper":

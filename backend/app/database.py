@@ -88,6 +88,12 @@ CREATE TABLE IF NOT EXISTS podcasts (
     created_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_podcasts_notebook ON podcasts(notebook_id);
+
+-- Runtime AI configuration overrides set from the UI (override env defaults).
+CREATE TABLE IF NOT EXISTS app_settings (
+    key    TEXT PRIMARY KEY,
+    value  TEXT NOT NULL
+);
 """
 
 

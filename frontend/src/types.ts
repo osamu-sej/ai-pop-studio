@@ -84,6 +84,26 @@ export interface ProviderStatus {
   notes: string[]
 }
 
+export interface SettingsView {
+  llm_provider: string
+  llm_base_url: string
+  llm_model: string
+  llm_api_key_set: boolean
+  embedding_provider: string
+  embedding_model: string
+  tts_provider: string
+}
+
+export interface SettingsUpdate {
+  llm_provider?: string
+  llm_base_url?: string
+  llm_model?: string
+  llm_api_key?: string
+  embedding_provider?: string
+  embedding_model?: string
+  tts_provider?: string
+}
+
 export type TransformKind =
   | 'summary'
   | 'study_guide'
