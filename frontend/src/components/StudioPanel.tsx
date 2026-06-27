@@ -19,10 +19,12 @@ export function StudioPanel({
   notebookId,
   hasSources,
   selectedIds,
+  refreshKey,
 }: {
   notebookId: string
   hasSources: boolean
   selectedIds: string[] | undefined
+  refreshKey?: number
 }) {
   const [notes, setNotes] = useState<Note[]>([])
   const [podcasts, setPodcasts] = useState<Podcast[]>([])
@@ -35,7 +37,7 @@ export function StudioPanel({
     api.listNotes(notebookId).then(setNotes)
     api.listPodcasts(notebookId).then(setPodcasts)
   }
-  useEffect(reload, [notebookId])
+  useEffect(reload, [notebookId, refreshKey])
 
   const runTransform = async (kind: TransformKind) => {
     if (!hasSources) return

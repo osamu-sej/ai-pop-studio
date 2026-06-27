@@ -3,6 +3,7 @@ import { api } from '../api'
 import type { ChatMessage, NotebookGuide, Source } from '../types'
 import { Markdown } from '../lib/markdown'
 import { IconSend, IconSparkles, IconTrash } from './Icons'
+import { SourceViewer } from './SourceViewer'
 
 const FALLBACK_SUGGESTIONS = [
   'Give me a 5-bullet summary of these sources.',
@@ -15,16 +16,20 @@ export function ChatPanel({
   notebookId,
   sources,
   selectedIds,
+  onNotesChanged,
 }: {
   notebookId: string
   sources: Source[]
   selectedIds: string[] | undefined
+  onNotesChanged?: () => void
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [guide, setGuide] = useState<NotebookGuide | null>(null)
   const [guideLoading, setGuideLoading] = useState(false)
+  const [viewer, setViewer] = useState<{ sourceId: string; snippet: string } | null>(null)
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -111,6 +116,16 @@ export function ChatPanel({
     setTimeout(() => el.classList.remove('cite-flash'), 1200)
   }
 
+  const saveAnswer = async (m: ChatMessage) => {
+    if (savedIds.has(m.id)) return
+    const idx = messages.findIndex((x) => x.id === m.id)
+    const question = idx > 0 ? messages[idx - 1].content : ''
+    const title = question ? question.slice(0, 80) : 'Saved answer'
+    await api.createNote(notebookId, title, m.content)
+    setSavedIds((prev) => new Set(prev).add(m.id))
+    onNotesChanged?.()
+  }
+
   const activeCount = selectedIds ? selectedIds.length : sources.length
 
   return (
@@ -186,6 +201,13 @@ export function ChatPanel({
                   <p>{m.content}</p>
                 )}
               </div>
+              {m.role === 'assistant' && m.content && !m.id.startsWith('stream-') && (
+                <div className="msg-actions">
+                  <button className="msg-action" onClick={() => saveAnswer(m)}>
+                    {savedIds.has(m.id) ? '✓ Saved to notes' : '＋ Save to notes'}
+                  </button>
+                </div>
+              )}
               {m.citations.length > 0 && (
                 <div className="citations">
                   {m.citations.map((c, i) => (
@@ -196,6 +218,12 @@ export function ChatPanel({
                         <span className="cite-score">{Math.round(c.score * 100)}%</span>
                       </summary>
                       <p>{c.snippet}</p>
+                      <button
+                        className="cite-open"
+                        onClick={() => setViewer({ sourceId: c.source_id, snippet: c.snippet })}
+                      >
+                        Open source ↗
+                      </button>
                     </details>
                   ))}
                 </div>
@@ -222,6 +250,15 @@ export function ChatPanel({
           <IconSend width={16} height={16} />
         </button>
       </div>
+
+      {viewer && (
+        <SourceViewer
+          notebookId={notebookId}
+          sourceId={viewer.sourceId}
+          snippet={viewer.snippet}
+          onClose={() => setViewer(null)}
+        />
+      )}
     </section>
   )
 }

@@ -136,8 +136,9 @@ Optional local **Whisper** transcribes **audio/video**. Select which sources are
 
 **Chat** — hybrid **semantic + keyword** retrieval grounds every answer in your
 sources, **streamed token-by-token** (SSE), with **clickable inline `[n]` citations**
-that jump to the exact supporting snippet (and a relevance score), plus
-**source-grounded suggested questions** to get you started.
+that jump to the exact supporting snippet (and a relevance score). Open any citation
+to read the **full source with the cited passage highlighted**, save any answer to
+**notes** in one click, and start from **source-grounded suggested questions**.
 
 **Switch AI engines from the UI** — a settings panel (⚙️) lets you change provider
 (Ollama / OpenAI-compatible / heuristic), model, base URL and API key live, with a

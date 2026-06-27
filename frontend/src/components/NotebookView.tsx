@@ -21,6 +21,7 @@ export function NotebookView({
   const [notebook, setNotebook] = useState<Notebook | null>(null)
   const [sources, setSources] = useState<Source[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [notesVersion, setNotesVersion] = useState(0)
   const firstLoad = useRef(true)
 
   const loadSources = useCallback(async () => {
@@ -100,8 +101,18 @@ export function NotebookView({
           onSetAll={setAll}
           onChanged={loadSources}
         />
-        <ChatPanel notebookId={notebookId} sources={sources} selectedIds={selectedIds} />
-        <StudioPanel notebookId={notebookId} hasSources={sources.length > 0} selectedIds={selectedIds} />
+        <ChatPanel
+          notebookId={notebookId}
+          sources={sources}
+          selectedIds={selectedIds}
+          onNotesChanged={() => setNotesVersion((v) => v + 1)}
+        />
+        <StudioPanel
+          notebookId={notebookId}
+          hasSources={sources.length > 0}
+          selectedIds={selectedIds}
+          refreshKey={notesVersion}
+        />
       </div>
     </div>
   )

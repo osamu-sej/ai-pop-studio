@@ -258,6 +258,29 @@ button { font-family: inherit; cursor: pointer; }
 .inline-cite:hover { background: var(--accent-2); color: #04212a; }
 .inline-cite-static { color: var(--accent-2); font-size: 0.7em; padding: 0 2px; }
 
+.msg-actions { display: flex; gap: 8px; margin-top: 6px; max-width: 86%; }
+.msg-action {
+  background: none; border: none; color: var(--text-mute); font-size: 12px; padding: 2px 4px;
+  border-radius: 5px; transition: color 0.13s ease;
+}
+.msg-action:hover { color: var(--accent-2); }
+.cite-open {
+  display: inline-block; margin: 0 11px 11px; padding: 4px 9px; font-size: 11.5px;
+  background: var(--bg-3); border: 1px solid var(--border-2); border-radius: 6px; color: var(--accent-2);
+}
+.cite-open:hover { border-color: var(--accent); }
+
+.source-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.source-reader {
+  max-height: 56vh; overflow-y: auto; padding-right: 6px;
+  font-size: 14px; line-height: 1.7; color: var(--text-dim);
+}
+.source-reader p { margin: 0 0 12px; }
+.reader-hit {
+  background: rgba(124, 92, 255, 0.16); border-left: 3px solid var(--accent);
+  padding: 8px 12px; border-radius: 0 6px 6px 0; color: var(--text);
+}
+
 .typing { display: inline-flex; gap: 4px; padding: 4px 2px; align-items: center; }
 .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-mute); animation: blink 1.4s infinite both; }
 .typing span:nth-child(2) { animation-delay: 0.2s; }
