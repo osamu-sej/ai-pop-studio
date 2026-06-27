@@ -1,102 +1,176 @@
-# POP Generator - セブンイレブン POP自動生成アプリ
-商品案内PDFから商品情報を自動抽出し、Excelテンプレートに挿入してPOPを生成するWebアプリケーション。
-## 概要
-セブンイレブンの新商品POPを作成する作業を自動化します。
-**従来のワークフロー（手作業）:**
+# 🌌 Aurora Notebook
+
+**A local-first, API-free alternative to Google NotebookLM.**
+Bring your own sources — PDFs, web pages, YouTube videos, documents, pasted text —
+then chat with them (grounded, with citations), generate study guides, briefings,
+timelines and mind maps, and produce two-host **audio overviews**. All of it runs
+on **your machine**, with **no API keys and no per-token costs** by default.
+
+> Inspired by [`lfnovo/open-notebook`](https://github.com/lfnovo/open-notebook) and
+> Google NotebookLM — rebuilt around a strict goal: **maximum capability at zero
+> running cost**, with privacy and offline operation as first-class features.
+
+---
+
+## ✨ Why Aurora
+
+| | Google NotebookLM | Aurora Notebook |
+|---|---|---|
+| Cost | Free tier w/ limits | **$0 — runs on your hardware** |
+| Privacy | Cloud | **100% local, your data never leaves** |
+| Offline | No | **Yes** |
+| Model choice | Locked to Google | **Any local model (Ollama) or any OpenAI-compatible endpoint** |
+| Source types | PDF, web, YouTube, text | PDF, **DOCX**, web, YouTube, text, **audio** |
+| Studio outputs | Summary, audio, study guide… | Summary, study guide, FAQ, **timeline**, **briefing**, **mind map**, key topics, **podcast** |
+| Works with zero AI installed | — | **Yes (built-in heuristic engine)** |
+| Self-hostable / hackable | No | **Yes, MIT-style, single SQLite file** |
+
+---
+
+## 🧱 Architecture at a glance
+
 ```
-商品案内PDF → 手動で商品名・売価・写真をコピー → Excelテンプレートに貼り付け → 税込価格を計算
+┌──────────────── React + Vite (3-pane NotebookLM UI) ────────────────┐
+│   Sources         │            Chat (cited)          │    Studio     │
+└─────────────────────────────── /api ────────────────────────────────┘
+                                   │
+┌────────────────────────── FastAPI backend ──────────────────────────┐
+│  ingestion → chunking → embeddings → hybrid search → RAG/transform   │
+│                         │                                             │
+│   AI layer (swappable):  Ollama  ·  OpenAI-compatible  ·  heuristic   │
+│   Storage:  single SQLite file (metadata + vectors inline)           │
+└──────────────────────────────────────────────────────────────────────┘
 ```
-**このアプリのワークフロー（自動化）:**
-```
-商品案内PDFをアップロード → 商品情報を自動抽出 → テンプレート選択 → POP自動生成・ダウンロード
-```
-## 主な機能
-- **PDF解析**: 商品案内PDFから商品名・売価・写真・説明文を自動抽出
-- **税込価格計算**: 税抜売価から税込価格を自動計算（8%/10%対応、税率変更可能）
-- **テンプレート管理**: 複数のExcel POPテンプレートに対応（初期2-3個、最大10個）
-- **POP生成**: 背景デザインを保持したまま商品情報を差し替え
-- **マルチユーザー**: 複数ユーザーが使用可能なWeb UI
-## 技術スタック
-| レイヤー | 技術 |
-|---------|------|
-| フロントエンド | React + Vite + TypeScript |
-| バックエンド | Python + FastAPI |
-| PDF解析 | PyMuPDF + Claude Vision API |
-| Excel操作 | openpyxl + XML直接操作 |
-| デプロイ | GitHub Codespaces |
-## プロジェクト構成
-```
-pop-generator/
-├── README.md
-├── docs/
-│   └── DESIGN.md          # 設計書
-├── frontend/              # React フロントエンド
-│   ├── package.json
-│   ├── vite.config.ts
-│   └── src/
-│       ├── App.tsx
-│       ├── components/
-│       │   ├── PdfUploader.tsx
-│       │   ├── ProductList.tsx
-│       │   ├── TemplateSelector.tsx
-│       │   └── PopPreview.tsx
-│       └── api/
-│           └── client.ts
-├── backend/               # FastAPI バックエンド
-│   ├── requirements.txt
-│   ├── main.py
-│   ├── routers/
-│   │   ├── pdf.py         # PDF解析API
-│   │   ├── pop.py         # POP生成API
-│   │   └── templates.py   # テンプレート管理API
-│   ├── services/
-│   │   ├── pdf_parser.py  # PDF情報抽出
-│   │   ├── image_extractor.py  # 商品写真抽出
-│   │   ├── excel_writer.py     # Excel差し替え
-│   │   └── tax_calculator.py   # 税込計算
-│   └── templates/         # Excelテンプレート格納
-│       └── .gitkeep
-├── .devcontainer/         # Codespaces設定
-│   └── devcontainer.json
-└── .env.example           # 環境変数サンプル
-```
-## セットアップ
-### GitHub Codespaces
-1. リポジトリを開き「Code」→「Codespaces」→「Create codespace」
-2. 自動的に開発環境がセットアップされます
-### 手動セットアップ
+
+- **Backend** — Python 3.12 · FastAPI
+- **Frontend** — React 19 · Vite · TypeScript (no UI framework lock-in)
+- **Database** — embedded **SQLite** (no server), vectors stored inline, cosine search in numpy
+- **AI** — pluggable: **Ollama** (default), any **OpenAI-compatible** endpoint, or a **zero-model heuristic engine**
+
+The whole AI layer hides behind small interfaces in `backend/app/ai/`. Nothing
+in the code hard-requires a paid provider — see [`DESIGN.md`](DESIGN.md) for the
+full **"can this be done without APIs?"** analysis (short answer: **yes**).
+
+---
+
+## 🚀 Quick start
+
+### 1. Install (no API key needed)
+
 ```bash
-# バックエンド
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-# フロントエンド
-cd frontend
-npm install
-npm run dev
+make install          # backend (pip) + frontend (npm)
 ```
-### 環境変数
+
+### 2. Run
+
 ```bash
-cp .env.example .env
-# .env を編集して Claude API キーを設定
-ANTHROPIC_API_KEY=your-api-key-here
+make dev              # backend :8000  +  frontend :5173 (Vite proxies /api)
 ```
-## 使い方
-1. ブラウザでアプリにアクセス
-2. 商品案内PDFをアップロード
-3. 抽出された商品一覧から、POPにしたい商品を選択
-4. テンプレートを選択
-5. 税率を確認（8% or 10%）
-6. 「POP生成」ボタンをクリック
-7. 完成したExcelをダウンロード
-## 開発フェーズ
-| Phase | 内容 | 状態 |
-|-------|------|------|
-| Phase 1 | PDF情報抽出の検証 | 完了 |
-| Phase 2 | Excelテンプレート差し替え検証 | 完了 |
-| Phase 3 | バックエンドAPI開発 | 未着手 |
-| Phase 4 | フロントエンドUI開発 | 未着手 |
-| Phase 5 | テンプレート管理・税率管理 | 未着手 |
-| Phase 6 | テスト・デプロイ | 未着手 |
-## ライセンス
-Private - 社内利用専用
+
+Open **http://localhost:5173**. That's it — Aurora already works in **offline /
+heuristic mode** (extractive summaries, keyword-grounded chat, podcast scripts).
+
+### 3. Unlock full AI quality — still 100% free & local
+
+Install [Ollama](https://ollama.com) and pull a couple of models:
+
+```bash
+ollama pull llama3.1:8b        # the reasoning model (chat, summaries, podcasts)
+ollama pull nomic-embed-text   # semantic embeddings for better retrieval
+# or simply:  make ollama-setup
+```
+
+Aurora auto-detects Ollama on `localhost:11434` and switches to full quality —
+LLM-written answers with inline citations, rich transformations, and natural
+multi-host podcast scripts. The status pill in the top-right shows live engine state.
+
+### Production (single process)
+
+```bash
+make serve            # builds the frontend and serves the whole app on :8000
+```
+
+---
+
+## 🎛️ Choosing your AI engine
+
+Everything is configured by env vars (`.env`, prefix `AURORA_`). Defaults are local.
+
+| Goal | Setting |
+|---|---|
+| **Local & free (recommended)** | `AURORA_LLM_PROVIDER=ollama` (default) |
+| **No model at all** | `AURORA_LLM_PROVIDER=heuristic` — built-in extractive engine |
+| **LM Studio / llama.cpp** | `AURORA_LLM_PROVIDER=openai`, `AURORA_LLM_BASE_URL=http://localhost:1234/v1` |
+| **Free-tier cloud (e.g. Groq)** | `AURORA_LLM_PROVIDER=openai`, set base URL + `AURORA_LLM_API_KEY` |
+
+See [`.env.example`](.env.example) for every option.
+
+> **On free-tier cloud APIs:** they can be faster than a laptop, but you trade
+> away privacy and hit rate/quota limits, and quality varies. Aurora treats them
+> as an *optional accelerator*, never a requirement. The recommended path —
+> **local Ollama** — has no quotas, no data leaving your machine, and excellent
+> quality on an 8B model.
+
+---
+
+## 🧩 Features
+
+**Sources** — drag-and-drop **PDF / DOCX / TXT / Markdown / CSV**, paste text, add a
+**web URL** (readable-content extraction) or a **YouTube link** (transcript import).
+Optional local **Whisper** transcribes **audio/video**. Select which sources are
+"in context" for chat and studio.
+
+**Chat** — hybrid **semantic + keyword** retrieval grounds every answer in your
+sources, with expandable **citations** showing the exact supporting snippet and a
+relevance score.
+
+**Studio** — one-click generation, each saved as an editable note:
+Summary · Study Guide · FAQ · Timeline · Key Topics · Briefing Document · Mind Map.
+
+**Audio Overview** — generate a **two-host podcast** (conversational / deep-dive /
+debate / solo) from your sources. Script is always produced; audio is synthesized
+locally if `pyttsx3` or `piper` is installed.
+
+**Notes** — keep your own markdown notes alongside generated ones.
+
+---
+
+## 🗂️ Project layout
+
+```
+backend/
+  app/
+    main.py            FastAPI app (also serves the built SPA)
+    config.py          env-driven settings, local-first defaults
+    database.py        SQLite schema + connection
+    repositories.py    data access (notebooks/sources/chunks/notes/chat/podcasts)
+    ai/                ← the swappable brain
+      llm.py           Ollama + OpenAI-compatible providers
+      embeddings.py    Ollama / sentence-transformers / hashing fallback
+      tts.py           piper / pyttsx3 / none
+      heuristics.py    zero-model extractive NLP
+      engine.py        routes model ↔ heuristic transparently
+    services/          ingestion, chunking, vectorstore, search, chat, studio
+    routers/           REST API
+  tests/               pytest suite (runs fully offline)
+frontend/
+  src/
+    components/        Home, NotebookView (3-pane), Sources/Chat/Studio panels
+    lib/markdown.tsx   dependency-free markdown renderer
+    api.ts, types.ts
+```
+
+---
+
+## ✅ Tests
+
+```bash
+make test       # 23 tests, fully offline (heuristic + hashing), no network
+make lint       # eslint (frontend)
+```
+
+---
+
+## 📜 License
+
+MIT. Use it, fork it, self-host it.

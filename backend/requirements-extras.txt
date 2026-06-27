@@ -1,0 +1,15 @@
+# ── Optional local-AI extras — upgrade quality, still 100% API-free ────────
+# These are heavier (native wheels / model downloads) so they are NOT in the
+# base requirements. Install any subset you want.
+
+# Better local embeddings (semantic vector search).
+# Alternative to the built-in pure-python hashing embeddings and to Ollama.
+sentence-transformers==3.3.1
+
+# Local speech-to-text for audio/video sources (offline Whisper).
+faster-whisper==1.1.0
+
+# Local text-to-speech for podcast audio (offline).
+# pyttsx3 uses the OS speech engine; piper produces higher-quality neural audio.
+pyttsx3==2.98
+# piper-tts==1.2.0        # uncomment if you want neural TTS voices

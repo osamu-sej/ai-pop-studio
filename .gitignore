@@ -8,9 +8,8 @@ env/
 venv/
 .venv/
 *.egg-info/
-dist/
-build/
 .eggs/
+.pytest_cache/
 
 # Node.js
 node_modules/
@@ -36,10 +35,14 @@ Thumbs.db
 
 # Build output
 frontend/dist/
+dist/
+build/
 
-# Uploaded files
-uploads/
-output/
+# Aurora runtime data (notebooks DB, uploads, generated media)
+backend/data/
+*.db
+*.db-wal
+*.db-shm
 
 # Temp
 *.tmp
