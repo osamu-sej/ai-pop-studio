@@ -9,6 +9,22 @@ const k = () => `md-${keySeq++}`
 
 type OnCite = (n: number) => void
 
+// Only allow safe link schemes. React does NOT block `javascript:`/`data:` URLs
+// in href, so an unsanitised markdown link from an untrusted source could run
+// script in the app origin. Anything with another scheme is rendered as text.
+function safeHref(url: string): string | null {
+  // Browsers strip whitespace — including the tab/newline/CR attackers use for
+  // `java\tscript:` — from URLs before parsing, so strip it here too.
+  const cleaned = url.replace(/\s+/g, '')
+  if (!cleaned) return null
+  // Relative links and anchors are always safe.
+  if (/^(\/|\.{0,2}\/|#)/.test(cleaned)) return cleaned
+  const m = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(cleaned)
+  if (!m) return cleaned // no scheme -> treat as a relative path
+  const scheme = m[1].toLowerCase()
+  return ['http', 'https', 'mailto'].includes(scheme) ? cleaned : null
+}
+
 function renderInline(text: string, onCite?: OnCite): ReactNode[] {
   const nodes: ReactNode[] = []
   // Order matters: code first (so ** inside code is literal), then links, bold,
@@ -24,10 +40,16 @@ function renderInline(text: string, onCite?: OnCite): ReactNode[] {
       nodes.push(<code key={k()} className="md-code">{token.slice(1, -1)}</code>)
     } else if (token.startsWith('[') && token.includes('](')) {
       const lm = /\[([^\]]+)\]\(([^)]+)\)/.exec(token)!
+      const href = safeHref(lm[2])
       nodes.push(
-        <a key={k()} href={lm[2]} target="_blank" rel="noreferrer">
-          {lm[1]}
-        </a>,
+        href ? (
+          <a key={k()} href={href} target="_blank" rel="noreferrer">
+            {lm[1]}
+          </a>
+        ) : (
+          // Unsafe scheme (javascript:, data:, …) -> render as plain text.
+          <span key={k()}>{lm[1]}</span>
+        ),
       )
     } else if (/^\[\d+\]$/.test(token)) {
       const n = parseInt(token.slice(1, -1), 10)
