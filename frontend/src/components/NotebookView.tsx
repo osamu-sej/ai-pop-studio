@@ -22,7 +22,12 @@ export function NotebookView({
   const [sources, setSources] = useState<Source[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [notesVersion, setNotesVersion] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
   const firstLoad = useRef(true)
+  const dragDepth = useRef(0)
 
   const loadSources = useCallback(async () => {
     const list = await api.listSources(notebookId)
@@ -70,14 +75,90 @@ export function NotebookView({
 
   const selectedIds = sources.length === selected.size ? undefined : Array.from(selected)
 
+  const saveName = async () => {
+    const name = nameDraft.trim()
+    setEditingName(false)
+    if (notebook && name && name !== notebook.name) {
+      const updated = await api.updateNotebook(notebookId, { name })
+      setNotebook(updated)
+    }
+  }
+
+  const hasFiles = (e: React.DragEvent) => e.dataTransfer?.types?.includes('Files')
+
+  const onDragEnter = (e: React.DragEvent) => {
+    if (!hasFiles(e)) return
+    e.preventDefault()
+    dragDepth.current += 1
+    setDragging(true)
+  }
+  const onDragOver = (e: React.DragEvent) => {
+    if (hasFiles(e)) e.preventDefault()
+  }
+  const onDragLeave = (e: React.DragEvent) => {
+    if (!hasFiles(e)) return
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragging(false)
+  }
+  const onDrop = async (e: React.DragEvent) => {
+    if (!hasFiles(e)) return
+    e.preventDefault()
+    dragDepth.current = 0
+    setDragging(false)
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length === 0) return
+    setUploading(true)
+    try {
+      for (const f of files) {
+        try {
+          await api.addFile(notebookId, f)
+        } catch {
+          /* skip files that fail; others still import */
+        }
+      }
+      await loadSources()
+    } finally {
+      setUploading(false)
+    }
+  }
+
   return (
-    <div className="nbview">
+    <div
+      className="nbview"
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
       <header className="nbview-head">
         <button className="icon-btn" onClick={onBack} title="Back to notebooks">
           <IconBack />
         </button>
         <span className="nbview-emoji">{notebook?.emoji ?? '📓'}</span>
-        <h2 className="nbview-title">{notebook?.name ?? 'Notebook'}</h2>
+        {editingName ? (
+          <input
+            className="nbview-title-input"
+            autoFocus
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={saveName}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveName()
+              if (e.key === 'Escape') setEditingName(false)
+            }}
+          />
+        ) : (
+          <h2
+            className="nbview-title editable"
+            title="Click to rename"
+            onClick={() => {
+              setNameDraft(notebook?.name ?? '')
+              setEditingName(true)
+            }}
+          >
+            {notebook?.name ?? 'Notebook'}
+          </h2>
+        )}
         <div className="spacer" />
         <a
           className="btn btn-sm"
@@ -114,6 +195,15 @@ export function NotebookView({
           refreshKey={notesVersion}
         />
       </div>
+
+      {(dragging || uploading) && (
+        <div className="drop-overlay">
+          <div className="drop-card">
+            <span className="drop-icon">⬇</span>
+            {uploading ? 'Importing files…' : 'Drop files to add them as sources'}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
