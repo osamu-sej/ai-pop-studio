@@ -5,7 +5,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -35,7 +35,9 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origin_list,
-    allow_credentials=True,
+    # The app uses no cookies/credentials; keeping this False keeps a wildcard
+    # origin spec valid per the CORS spec.
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -50,9 +52,16 @@ if FRONTEND_DIST.exists():
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def spa(full_path: str):
-        candidate = FRONTEND_DIST / full_path
-        if full_path and candidate.is_file():
-            return FileResponse(candidate)
+        # Unknown API paths must 404 as JSON, not fall through to the SPA shell.
+        if full_path.startswith("api/"):
+            raise HTTPException(404, "Not found")
+        # Serve a real static file only if it resolves *inside* the dist dir
+        # (guards against path traversal like `../../etc/passwd`).
+        if full_path:
+            candidate = (FRONTEND_DIST / full_path).resolve()
+            root = FRONTEND_DIST.resolve()
+            if candidate.is_file() and candidate.is_relative_to(root):
+                return FileResponse(candidate)
         return FileResponse(FRONTEND_DIST / "index.html")
 else:
     @app.get("/", include_in_schema=False)

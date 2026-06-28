@@ -56,6 +56,23 @@ def get_source(notebook_id: str, source_id: str):
     return src
 
 
+@router.post("/{source_id}/reindex", response_model=Source)
+def reindex_source(notebook_id: str, source_id: str):
+    """Re-chunk, re-embed and re-summarise a source.
+
+    Useful after switching the embedding model, or to retry an audio source once
+    a local speech-to-text engine has been installed.
+    """
+    _require_notebook(notebook_id)
+    src = repo.get_source(source_id)
+    if not src or src["notebook_id"] != notebook_id:
+        raise HTTPException(404, "Source not found")
+    updated = ingestion.reindex_source(source_id)
+    if updated is None:
+        raise HTTPException(404, "Source not found")
+    return updated
+
+
 @router.delete("/{source_id}", status_code=204)
 def delete_source(notebook_id: str, source_id: str):
     _require_notebook(notebook_id)

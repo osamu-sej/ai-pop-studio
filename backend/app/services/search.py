@@ -51,6 +51,13 @@ def _semantic(query: str, chunks: list[dict]) -> dict[str, float]:
     if not vecs:
         return {}
     qvec = get_embedder().embed([query])[0]
+    # Guard against a dimension mismatch: if the embedding provider/model was
+    # changed after some sources were indexed, their stored vectors have a
+    # different dim. Skip those (they fall back to lexical) instead of crashing.
+    dim = qvec.shape[0]
+    vecs = [c for c in vecs if c["vector"].shape[0] == dim]
+    if not vecs:
+        return {}
     matrix = np.vstack([c["vector"] for c in vecs])
     sims = matrix @ qvec  # vectors are L2-normalised -> dot == cosine
     return {c["id"]: float(s) for c, s in zip(vecs, sims)}

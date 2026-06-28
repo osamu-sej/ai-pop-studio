@@ -44,19 +44,21 @@ def answer_question_stream(question: str, context_blocks: list[str]) -> Iterator
     """Yield the answer incrementally (real streaming if a model is available)."""
     llm = get_llm()
     if context_blocks and llm.available():
+        produced = False
         try:
             messages = [
                 {"role": "system", "content": prompts.RAG_SYSTEM},
                 {"role": "user", "content": prompts.rag_user_prompt(question, context_blocks)},
             ]
-            produced = False
             for delta in llm.stream(messages, max_tokens=900):
                 produced = True
                 yield delta
-            if produced:
-                return
         except Exception:
             pass
+        # If the model emitted anything, never append the heuristic answer on top
+        # (that would garble a partial reply). Only fall back when nothing came out.
+        if produced:
+            return
     # Heuristic path: compute then emit in word groups so the UI still "types".
     text = heuristics.answer(question, context_blocks)
     yield from _chunk_words(text)

@@ -12,6 +12,7 @@ from pathlib import Path
 from .. import repositories as repo
 from ..ai import engine
 from ..config import get_settings
+from ..utils import new_id
 from . import chunking, extractors, vectorstore
 
 
@@ -28,15 +29,19 @@ def _index_source(source: dict) -> dict:
             embeddings = None
     repo.replace_chunks(source["id"], source["notebook_id"], chunks, embeddings)
 
-    summary = ""
     if text.strip():
         try:
             summary = engine.summarize_source(text)
         except Exception:
             summary = ""
-    if summary:
-        repo.update_source_summary(source["id"], summary)
-    repo.set_source_status(source["id"], "ready")
+        if summary:
+            repo.update_source_summary(source["id"], summary)
+        repo.set_source_status(source["id"], "ready")
+    else:
+        # Nothing to index (e.g. an audio source still awaiting transcription).
+        # Don't falsely mark it "ready" — leave its existing status intact.
+        if source.get("status") not in {"needs_stt"}:
+            repo.set_source_status(source["id"], "ready")
     return repo.get_source(source["id"])
 
 
@@ -68,22 +73,27 @@ def ingest_file(notebook_id: str, filename: str, data: bytes) -> dict:
 
 def _ingest_audio(notebook_id: str, filename: str, data: bytes) -> dict:
     settings = get_settings()
+    # Never trust the upload filename for a filesystem path (path-traversal guard).
+    safe_name = Path(filename).name or "upload"
     if not extractors.whisper_available():
         # Store a placeholder so the user knows what's needed — no crash.
         source = repo.create_source(
-            notebook_id, filename, "audio",
+            notebook_id, safe_name, "audio",
             content="",
-            origin=filename,
+            origin=safe_name,
             summary="Audio transcription needs the optional 'faster-whisper' package "
                     "(pip install -r requirements-extras.txt). The file was saved but not transcribed.",
             status="needs_stt",
-            metadata={"filename": filename},
+            metadata={"filename": safe_name},
         )
         return source
-    tmp = settings.uploads_dir / filename
+    tmp = settings.uploads_dir / f"{new_id()}_{safe_name}"
     tmp.write_bytes(data)
-    title, text, stype, meta = extractors.extract_audio(tmp, filename, settings.stt_model)
-    source = repo.create_source(notebook_id, title, stype, text, origin=filename, metadata=meta)
+    try:
+        title, text, stype, meta = extractors.extract_audio(tmp, safe_name, settings.stt_model)
+    finally:
+        tmp.unlink(missing_ok=True)  # don't leave uploaded media lying around
+    source = repo.create_source(notebook_id, title, stype, text, origin=safe_name, metadata=meta)
     return _index_source(source)
 
 

@@ -44,3 +44,30 @@ def test_source_count_reflected_on_notebook(client, notebook):
     nid = notebook["id"]
     client.post(f"/api/notebooks/{nid}/sources/text", json={"title": "x", "content": "hello world"})
     assert client.get(f"/api/notebooks/{nid}").json()["source_count"] == 1
+
+
+def test_reindex_source(client, notebook):
+    nid = notebook["id"]
+    src = client.post(
+        f"/api/notebooks/{nid}/sources/text",
+        json={"title": "T", "content": "Solar panels and wind power generate clean electricity."},
+    ).json()
+    resp = client.post(f"/api/notebooks/{nid}/sources/{src['id']}/reindex")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ready"
+    # retrieval still works after reindexing
+    hits = client.post(f"/api/notebooks/{nid}/search", json={"query": "solar"}).json()
+    assert len(hits) >= 1
+
+
+def test_audio_upload_filename_is_sanitised(client, notebook):
+    # A malicious filename must never become a filesystem path (traversal guard).
+    nid = notebook["id"]
+    resp = client.post(
+        f"/api/notebooks/{nid}/sources/file",
+        files={"file": ("../../../etc/evil.mp3", b"not-real-audio", "audio/mpeg")},
+    )
+    assert resp.status_code == 201, resp.text
+    src = resp.json()
+    assert ".." not in src["origin"]
+    assert src["origin"] == "evil.mp3"

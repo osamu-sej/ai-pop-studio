@@ -87,6 +87,8 @@ export const api = {
   },
   deleteSource: (nb: string, id: string) =>
     http<void>(`/api/notebooks/${nb}/sources/${id}`, { method: 'DELETE' }),
+  reindexSource: (nb: string, id: string) =>
+    http<Source>(`/api/notebooks/${nb}/sources/${id}/reindex`, { method: 'POST' }),
 
   // notes
   listNotes: (nb: string) => http<Note[]>(`/api/notebooks/${nb}/notes`),

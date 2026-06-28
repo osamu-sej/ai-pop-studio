@@ -3,6 +3,23 @@ import numpy as np
 from app.ai.embeddings import HashingEmbedder
 from app.ai.heuristics import summarize, top_keywords
 from app.services.chunking import chunk_text
+from app.services.search import rank
+
+
+def test_rank_tolerates_mixed_dimension_vectors():
+    # Simulates the embedding model being changed after some sources were
+    # indexed: stored vectors have different dims. Ranking must not crash.
+    a = np.random.rand(384).astype("float32")
+    a /= np.linalg.norm(a)
+    b = np.random.rand(128).astype("float32")
+    b /= np.linalg.norm(b)
+    chunks = [
+        {"id": "1", "text": "solar energy photovoltaic panels", "vector": a},
+        {"id": "2", "text": "boil pasta in salted water", "vector": b},
+    ]
+    results = rank("solar energy panels", chunks, top_k=2)
+    assert isinstance(results, list)
+    assert any(c["id"] == "1" for c, _ in results)
 
 
 def test_chunking_overlap_and_size():

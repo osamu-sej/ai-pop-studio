@@ -30,6 +30,7 @@ export function SourcesPanel({
 }) {
   const [adding, setAdding] = useState(false)
   const [detail, setDetail] = useState<SourceDetail | null>(null)
+  const [reindexing, setReindexing] = useState(false)
 
   const allOn = sources.length > 0 && selected.size === sources.length
 
@@ -42,6 +43,18 @@ export function SourcesPanel({
   const openDetail = async (id: string) => {
     const d = await api.getSource(notebookId, id)
     setDetail(d)
+  }
+
+  const reindex = async () => {
+    if (!detail) return
+    setReindexing(true)
+    try {
+      await api.reindexSource(notebookId, detail.id)
+      onChanged()
+      setDetail(null)
+    } finally {
+      setReindexing(false)
+    }
   }
 
   return (
@@ -120,8 +133,19 @@ export function SourcesPanel({
           {detail.origin && (
             <p className="muted small">Origin: {detail.origin}</p>
           )}
+          {detail.status === 'needs_stt' && (
+            <p className="error-text">
+              This audio wasn't transcribed. Install the optional `faster-whisper` package and
+              re-upload the file to transcribe it.
+            </p>
+          )}
           <h4>Content</h4>
           <div className="detail-content">{detail.content || '(empty)'}</div>
+          <div className="modal-actions">
+            <button className="btn" onClick={reindex} disabled={reindexing} title="Re-chunk, re-embed and re-summarise">
+              {reindexing ? 'Re-indexing…' : 'Re-index'}
+            </button>
+          </div>
         </Modal>
       )}
     </aside>
