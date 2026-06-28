@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
     retrieval_top_k: int = 8
 
+    # ── Ingestion safety ───────────────────────────────────────────────────
+    max_upload_mb: int = 50       # reject uploads larger than this
+    # By default, refuse to fetch URLs that resolve to private/loopback/link-local
+    # addresses (SSRF guard). Set true if you self-host internal docs you want to
+    # add as sources.
+    allow_private_urls: bool = False
+
     @property
     def database_path(self) -> Path:
         return self.db_path or (self.data_dir / "aurora.db")

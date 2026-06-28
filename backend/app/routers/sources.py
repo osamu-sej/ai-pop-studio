@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from .. import repositories as repo
+from ..config import get_settings
 from ..schemas import Source, SourceCreateText, SourceCreateUrl, SourceDetail
 from ..services import ingestion
 
@@ -41,8 +42,13 @@ async def add_file(notebook_id: str, file: UploadFile = File(...)):
     data = await file.read()
     if not data:
         raise HTTPException(422, "Empty file")
+    max_bytes = get_settings().max_upload_mb * 1024 * 1024
+    if len(data) > max_bytes:
+        raise HTTPException(413, f"File exceeds the {get_settings().max_upload_mb} MB limit")
     try:
         return ingestion.ingest_file(notebook_id, file.filename or "upload", data)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(422, f"Could not import file: {exc}")
 

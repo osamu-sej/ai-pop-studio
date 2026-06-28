@@ -11,15 +11,46 @@ Each returns: (title, text, source_type, metadata).
 from __future__ import annotations
 
 import importlib.util
+import ipaddress
 import re
+import socket
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import httpx
 
+from ..config import get_settings
 from ..utils import clean_text
 
 UA = "Mozilla/5.0 (compatible; AuroraNotebook/1.0; +local)"
+
+
+def _assert_safe_url(url: str) -> None:
+    """Reject non-http(s) schemes and (by default) private/loopback targets.
+
+    This is an SSRF guard: without it, anyone who can add a URL source could make
+    the server fetch internal addresses (cloud metadata, localhost services, …).
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError("Only http(s) URLs are supported")
+    host = parsed.hostname
+    if not host:
+        raise ValueError("Invalid URL host")
+    if get_settings().allow_private_urls:
+        return
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except Exception as exc:
+        raise ValueError(f"Could not resolve host: {host}") from exc
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            raise ValueError(
+                "Refusing to fetch a private/loopback address. "
+                "Set AURORA_ALLOW_PRIVATE_URLS=true to allow internal URLs."
+            )
 
 
 # ── PDF ────────────────────────────────────────────────────────────────────
@@ -61,11 +92,25 @@ def extract_text(title: str, content: str) -> tuple[str, str, str, dict]:
 
 
 # ── Web pages ──────────────────────────────────────────────────────────────
+def _fetch_validated(url: str, max_redirects: int = 5) -> httpx.Response:
+    """Fetch a URL, validating every hop so a redirect can't bypass the SSRF guard."""
+    current = url
+    with httpx.Client(headers={"User-Agent": UA}, timeout=30.0, follow_redirects=False) as client:
+        for _ in range(max_redirects + 1):
+            _assert_safe_url(current)
+            resp = client.get(current)
+            if resp.is_redirect and resp.headers.get("location"):
+                current = str(httpx.URL(current).join(resp.headers["location"]))
+                continue
+            resp.raise_for_status()
+            return resp
+    raise ValueError("Too many redirects")
+
+
 def extract_web(url: str, title: str | None = None) -> tuple[str, str, str, dict]:
     from bs4 import BeautifulSoup
 
-    resp = httpx.get(url, headers={"User-Agent": UA}, timeout=30.0, follow_redirects=True)
-    resp.raise_for_status()
+    resp = _fetch_validated(url)
     soup = BeautifulSoup(resp.text, "lxml")
 
     for tag in soup(["script", "style", "noscript", "header", "footer", "nav", "aside", "form"]):
