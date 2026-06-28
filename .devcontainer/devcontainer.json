@@ -1,5 +1,5 @@
 {
-  "name": "POP Generator",
+  "name": "Aurora Notebook",
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
@@ -7,15 +7,13 @@
     }
   },
   "forwardPorts": [5173, 8000],
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y git make && cd backend && pip install -r requirements.txt && cd ../frontend && npm install",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y make && cd backend && pip install -r requirements.txt && cd ../frontend && npm install",
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-python.python",
-        "ms-python.pylint",
         "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode",
-        "bradlc.vscode-tailwindcss"
+        "esbenp.prettier-vscode"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",

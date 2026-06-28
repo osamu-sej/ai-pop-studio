@@ -1,0 +1,49 @@
+# One-command, fully self-hosted, API-free deployment.
+#
+#   docker compose up -d --build
+#   docker compose exec ollama ollama pull llama3.1:8b
+#   docker compose exec ollama ollama pull nomic-embed-text
+#   open http://localhost:8000
+#
+# Everything runs locally: the `ollama` service provides the LLM + embeddings,
+# the `aurora` service serves the app and API. No API keys, nothing leaves your box.
+# (Aurora also works without the ollama service — it falls back to its built-in
+# heuristic engine — but local models give the best quality.)
+
+services:
+  aurora:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      AURORA_LLM_PROVIDER: ollama
+      AURORA_LLM_BASE_URL: http://ollama:11434
+      AURORA_LLM_MODEL: llama3.1:8b
+      AURORA_EMBEDDING_PROVIDER: auto
+      AURORA_EMBEDDING_MODEL: nomic-embed-text
+      AURORA_DATA_DIR: /app/data
+    volumes:
+      - aurora-data:/app/data
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+    # For GPU acceleration, uncomment (requires the NVIDIA Container Toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  aurora-data:
+  ollama:

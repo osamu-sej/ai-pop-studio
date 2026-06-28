@@ -1,0 +1,104 @@
+"""Source ingestion pipeline.
+
+extract → store source → chunk → embed → store chunks → summarise.
+
+Embedding + summarisation happen at write time so chat/search stay fast.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from .. import repositories as repo
+from ..ai import engine
+from ..config import get_settings
+from ..utils import new_id
+from . import chunking, extractors, vectorstore
+
+
+def _index_source(source: dict) -> dict:
+    """Chunk + embed + summarise a freshly stored source."""
+    settings = get_settings()
+    text = source["content"]
+    chunks = chunking.chunk_text(text, settings.chunk_size, settings.chunk_overlap)
+    embeddings = None
+    if chunks:
+        try:
+            embeddings = vectorstore.embed_chunks(chunks)
+        except Exception:
+            embeddings = None
+    repo.replace_chunks(source["id"], source["notebook_id"], chunks, embeddings)
+
+    if text.strip():
+        try:
+            summary = engine.summarize_source(text)
+        except Exception:
+            summary = ""
+        if summary:
+            repo.update_source_summary(source["id"], summary)
+        repo.set_source_status(source["id"], "ready")
+    else:
+        # Nothing to index (e.g. an audio source still awaiting transcription).
+        # Don't falsely mark it "ready" — leave its existing status intact.
+        if source.get("status") not in {"needs_stt"}:
+            repo.set_source_status(source["id"], "ready")
+    return repo.get_source(source["id"])
+
+
+def ingest_text(notebook_id: str, title: str, content: str) -> dict:
+    title, text, stype, meta = extractors.extract_text(title, content)
+    source = repo.create_source(notebook_id, title, stype, text, origin="", metadata=meta)
+    return _index_source(source)
+
+
+def ingest_url(notebook_id: str, url: str, title: str | None = None) -> dict:
+    title_out, text, stype, meta = extractors.extract_url(url, title)
+    source = repo.create_source(notebook_id, title_out, stype, text, origin=url, metadata=meta)
+    return _index_source(source)
+
+
+def ingest_file(notebook_id: str, filename: str, data: bytes) -> dict:
+    ext = Path(filename).suffix.lower()
+    if ext == ".pdf":
+        title, text, stype, meta = extractors.extract_pdf(data, filename)
+    elif ext == ".docx":
+        title, text, stype, meta = extractors.extract_docx(data, filename)
+    elif ext in {".mp3", ".wav", ".m4a", ".mp4", ".webm", ".ogg", ".flac"}:
+        return _ingest_audio(notebook_id, filename, data)
+    else:  # .txt, .md, .csv, .json, code, anything text-like
+        title, text, stype, meta = extractors.extract_text_bytes(data, filename)
+    source = repo.create_source(notebook_id, title, stype, text, origin=filename, metadata=meta)
+    return _index_source(source)
+
+
+def _ingest_audio(notebook_id: str, filename: str, data: bytes) -> dict:
+    settings = get_settings()
+    # Never trust the upload filename for a filesystem path (path-traversal guard).
+    safe_name = Path(filename).name or "upload"
+    if not extractors.whisper_available():
+        # Store a placeholder so the user knows what's needed — no crash.
+        source = repo.create_source(
+            notebook_id, safe_name, "audio",
+            content="",
+            origin=safe_name,
+            summary="Audio transcription needs the optional 'faster-whisper' package "
+                    "(pip install -r requirements-extras.txt). The file was saved but not transcribed.",
+            status="needs_stt",
+            metadata={"filename": safe_name},
+        )
+        return source
+    tmp = settings.uploads_dir / f"{new_id()}_{safe_name}"
+    tmp.write_bytes(data)
+    try:
+        title, text, stype, meta = extractors.extract_audio(tmp, safe_name, settings.stt_model)
+    finally:
+        tmp.unlink(missing_ok=True)  # don't leave uploaded media lying around
+    source = repo.create_source(notebook_id, title, stype, text, origin=safe_name, metadata=meta)
+    return _index_source(source)
+
+
+def reindex_source(source_id: str) -> dict | None:
+    source = repo.get_source(source_id)
+    if not source:
+        return None
+    return _index_source(source)

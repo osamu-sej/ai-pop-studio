@@ -1,0 +1,107 @@
+import pytest
+
+
+@pytest.mark.parametrize(
+    "kind", ["summary", "study_guide", "faq", "timeline", "key_topics", "briefing", "mindmap"]
+)
+def test_transformations_produce_notes(client, notebook_with_source, kind):
+    nid = notebook_with_source["id"]
+    res = client.post(
+        f"/api/notebooks/{nid}/studio/transform",
+        json={"kind": kind, "save_as_note": True},
+    ).json()
+    assert res["kind"] == kind
+    assert len(res["content"]) > 0
+    assert res["note_id"] is not None
+
+    notes = client.get(f"/api/notebooks/{nid}/notes").json()
+    assert any(n["id"] == res["note_id"] and n["note_type"] == "generated" for n in notes)
+
+
+def test_podcast_generation(client, notebook_with_source):
+    nid = notebook_with_source["id"]
+    pod = client.post(
+        f"/api/notebooks/{nid}/studio/podcasts",
+        json={"style": "conversational", "length": "short"},
+    ).json()
+    assert pod["status"] == "ready"
+    assert "🎙️" in pod["transcript"] or "Welcome" in pod["transcript"]
+
+    listing = client.get(f"/api/notebooks/{nid}/studio/podcasts").json()
+    assert any(p["id"] == pod["id"] for p in listing)
+
+
+def test_notes_crud(client, notebook):
+    nid = notebook["id"]
+    note = client.post(f"/api/notebooks/{nid}/notes", json={"title": "T", "content": "C"}).json()
+    updated = client.patch(
+        f"/api/notebooks/{nid}/notes/{note['id']}", json={"content": "C2"}
+    ).json()
+    assert updated["content"] == "C2"
+    assert client.delete(f"/api/notebooks/{nid}/notes/{note['id']}").status_code == 204
+
+
+def test_status_endpoint(client):
+    s = client.get("/api/status").json()
+    assert s["llm_mode"] in {"model", "heuristic"}
+    assert "embedding_provider" in s
+
+
+def test_notebook_guide(client, notebook_with_source):
+    nid = notebook_with_source["id"]
+    g = client.get(f"/api/notebooks/{nid}/studio/guide").json()
+    assert g["source_count"] == 1
+    assert len(g["overview"]) > 0
+    assert len(g["topics"]) >= 1
+    assert len(g["suggestions"]) >= 1
+
+
+def test_notebook_guide_empty(client, notebook):
+    g = client.get(f"/api/notebooks/{notebook['id']}/studio/guide").json()
+    assert g["source_count"] == 0
+    assert g["topics"] == []
+
+
+def test_notebook_guide_cache_and_invalidation(client, notebook_with_source):
+    nid = notebook_with_source["id"]
+    g1 = client.get(f"/api/notebooks/{nid}/studio/guide").json()
+    # second call returns identical content (served from cache)
+    g2 = client.get(f"/api/notebooks/{nid}/studio/guide").json()
+    assert g1 == g2
+    # the cache row exists
+    from app import repositories as repo
+    assert repo.get_guide_cache(nid) is not None
+    # adding a source changes the fingerprint -> guide regenerates
+    client.post(
+        f"/api/notebooks/{nid}/sources/text",
+        json={"title": "More", "content": "Wind turbines harness wind to make power."},
+    )
+    g3 = client.get(f"/api/notebooks/{nid}/studio/guide").json()
+    assert g3["source_count"] == g1["source_count"] + 1
+
+
+def test_suggestions(client, notebook_with_source):
+    nid = notebook_with_source["id"]
+    qs = client.get(f"/api/notebooks/{nid}/chat/suggestions").json()
+    assert isinstance(qs, list) and len(qs) >= 1
+    assert all(isinstance(q, str) and q for q in qs)
+
+
+def test_suggestions_empty_without_sources(client, notebook):
+    qs = client.get(f"/api/notebooks/{notebook['id']}/chat/suggestions").json()
+    assert qs == []
+
+
+def test_export_markdown(client, notebook_with_source):
+    nid = notebook_with_source["id"]
+    # add a note + a chat turn so the export covers all sections
+    client.post(f"/api/notebooks/{nid}/notes", json={"title": "My note", "content": "hello"})
+    client.post(f"/api/notebooks/{nid}/chat", json={"message": "Summarize please"})
+    resp = client.get(f"/api/notebooks/{nid}/export")
+    assert resp.status_code == 200
+    assert "attachment" in resp.headers.get("content-disposition", "")
+    body = resp.text
+    assert "## Sources" in body
+    assert "Renewables" in body
+    assert "My note" in body
+    assert "## Conversation" in body

@@ -1,8 +1,26 @@
+# ── Aurora Notebook — backend core dependencies ────────────────────────────
+# Everything here installs cleanly with no GPU and no API keys.
+# The app runs fully offline with these alone (heuristic fallback engine).
+# Local AI quality is unlocked by installing Ollama separately (see README).
+
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 python-multipart==0.0.20
-PyMuPDF==1.25.3
-openpyxl==3.1.5
-Pillow==11.1.0
-easyocr==1.7.2
+pydantic==2.10.6
+pydantic-settings==2.7.1
+httpx==0.28.1
+
+# Document ingestion
+PyMuPDF==1.25.3            # PDF text + image extraction
+beautifulsoup4==4.12.3     # HTML cleanup for web sources
+lxml==5.3.0
+youtube-transcript-api==0.6.3
+python-docx==1.1.2         # .docx sources
+
+# Vector math (pure-python embedding fallback uses this)
 numpy>=1.26.0
+
+# ── Optional local-AI extras (NOT required to run) ─────────────────────────
+# Install these to upgrade quality while staying 100% API-free / offline:
+#   pip install -r requirements-extras.txt
+# See requirements-extras.txt and README "API-free design".
