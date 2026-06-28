@@ -4,6 +4,7 @@ import type { Notebook, ProviderStatus } from '../types'
 import { IconBook, IconPlus, IconSettings, IconTrash } from './Icons'
 import { Modal } from './Modal'
 import { StatusPill } from './StatusPill'
+import { GlobalSearch } from './GlobalSearch'
 
 const EMOJIS = ['📓', '🌍', '🔬', '📚', '💡', '🧠', '⚖️', '🚀', '🎬', '🧪', '📈', '🩺']
 
@@ -62,6 +63,8 @@ export function Home({
       </header>
 
       <div className="home-body">
+        {!loading && notebooks.length > 0 && <GlobalSearch onOpen={onOpen} />}
+
         <div className="home-title-row">
           <h2>Notebooks</h2>
           <button className="btn btn-primary" onClick={() => setCreating(true)}>

@@ -65,6 +65,17 @@ export interface Podcast {
   created_at: string
 }
 
+export interface GlobalSearchHit {
+  notebook_id: string
+  notebook_name: string
+  notebook_emoji: string
+  source_id: string
+  source_title: string
+  chunk_idx: number
+  text: string
+  score: number
+}
+
 export interface NotebookGuide {
   overview: string
   topics: string[]

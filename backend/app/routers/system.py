@@ -7,7 +7,14 @@ from ..ai.embeddings import get_embedder
 from ..ai.engine import llm_mode
 from ..ai.llm import get_llm
 from ..ai.tts import get_tts
-from ..schemas import ProviderStatus, SettingsUpdate, SettingsView
+from ..schemas import (
+    GlobalSearchHit,
+    GlobalSearchRequest,
+    ProviderStatus,
+    SettingsUpdate,
+    SettingsView,
+)
+from ..services import search as search_service
 
 router = APIRouter(prefix="/api", tags=["system"])
 
@@ -15,6 +22,11 @@ router = APIRouter(prefix="/api", tags=["system"])
 @router.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@router.post("/search", response_model=list[GlobalSearchHit], tags=["search"])
+def global_search(body: GlobalSearchRequest):
+    return search_service.global_search(body.query, top_k=body.top_k)
 
 
 def _settings_view() -> SettingsView:

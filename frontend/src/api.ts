@@ -1,5 +1,6 @@
 import type {
   ChatMessage,
+  GlobalSearchHit,
   Note,
   Notebook,
   NotebookGuide,
@@ -35,6 +36,11 @@ async function http<T>(url: string, options?: RequestInit): Promise<T> {
 export const api = {
   // system
   status: () => http<ProviderStatus>('/api/status'),
+  globalSearch: (query: string, topK = 20) =>
+    http<GlobalSearchHit[]>('/api/search', {
+      method: 'POST',
+      body: JSON.stringify({ query, top_k: topK }),
+    }),
   getSettings: () => http<SettingsView>('/api/settings'),
   updateSettings: (patch: SettingsUpdate) =>
     http<ProviderStatus>('/api/settings', { method: 'PUT', body: JSON.stringify(patch) }),

@@ -119,6 +119,22 @@ class SearchHit(BaseModel):
     score: float
 
 
+class GlobalSearchRequest(BaseModel):
+    query: str = Field(min_length=1)
+    top_k: int = 20
+
+
+class GlobalSearchHit(BaseModel):
+    notebook_id: str
+    notebook_name: str
+    notebook_emoji: str
+    source_id: str
+    source_title: str
+    chunk_idx: int
+    text: str
+    score: float
+
+
 # ── Studio / transformations ───────────────────────────────────────────────
 class TransformRequest(BaseModel):
     kind: str  # summary | study_guide | faq | timeline | briefing | mindmap | key_topics

@@ -169,16 +169,29 @@ def get_chunks_for_notebook(notebook_id: str, source_ids: list[str] | None = Non
         sql += f" AND c.source_id IN ({placeholders})"
         params.extend(source_ids)
     rows = conn.execute(sql, params).fetchall()
-    out = []
-    for r in rows:
-        d = dict(r)
-        if d["embedding"] is not None and d["dim"]:
-            d["vector"] = np.frombuffer(d["embedding"], dtype=np.float32)
-        else:
-            d["vector"] = None
-        del d["embedding"]
-        out.append(d)
-    return out
+    return [_chunk_with_vector(r) for r in rows]
+
+
+def get_chunks_global() -> list[dict]:
+    """All chunks across every notebook, with notebook + source names attached."""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT c.id, c.source_id, c.notebook_id, c.idx, c.text, c.embedding, c.dim, "
+        "s.title AS source_title, n.name AS notebook_name, n.emoji AS notebook_emoji "
+        "FROM chunks c JOIN sources s ON s.id = c.source_id "
+        "JOIN notebooks n ON n.id = c.notebook_id"
+    ).fetchall()
+    return [_chunk_with_vector(r) for r in rows]
+
+
+def _chunk_with_vector(r) -> dict:
+    d = dict(r)
+    if d.get("embedding") is not None and d.get("dim"):
+        d["vector"] = np.frombuffer(d["embedding"], dtype=np.float32)
+    else:
+        d["vector"] = None
+    d.pop("embedding", None)
+    return d
 
 
 # ── Notes ──────────────────────────────────────────────────────────────────

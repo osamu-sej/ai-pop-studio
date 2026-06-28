@@ -154,6 +154,9 @@ Summary · Study Guide · FAQ · Timeline · Key Topics · Briefing Document · 
 debate / solo) from your sources. Script is always produced; audio is synthesized
 locally if `pyttsx3` or `piper` is installed.
 
+**Global search** — from the home screen, search across **every notebook** at once
+with the same hybrid ranking; click a hit to jump straight into that notebook.
+
 **Notes** — keep your own markdown notes alongside generated ones.
 
 **Export** — download an entire notebook (source summaries, notes, conversation)
@@ -191,7 +194,7 @@ frontend/
 ## ✅ Tests
 
 ```bash
-make test       # 32 tests, fully offline (heuristic + hashing), no network
+make test       # 34 tests, fully offline (heuristic + hashing), no network
 make lint       # eslint (frontend)
 ```
 
