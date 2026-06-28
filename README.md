@@ -1,5 +1,7 @@
 # 🌌 Aurora Notebook
 
+[![CI](https://github.com/osamu-sej/ai-pop-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/osamu-sej/ai-pop-studio/actions/workflows/ci.yml)
+
 **A local-first, API-free alternative to Google NotebookLM.**
 Bring your own sources — PDFs, web pages, YouTube videos, documents, pasted text —
 then chat with them (grounded, with citations), generate study guides, briefings,
