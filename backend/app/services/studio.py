@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 from .. import repositories as repo
 from ..ai import engine, heuristics
 from ..ai.tts import get_tts
@@ -88,19 +90,43 @@ def suggested_questions(notebook_id: str, source_ids: list[str] | None = None) -
     return engine.suggest_questions(text, n=4)
 
 
-def notebook_guide(notebook_id: str) -> dict:
-    """An at-a-glance overview of the whole notebook (NotebookLM-style guide)."""
+def notebook_guide(notebook_id: str, force: bool = False) -> dict:
+    """An at-a-glance overview of the whole notebook (NotebookLM-style guide).
+
+    Cached and keyed by a fingerprint of the notebook's sources so it isn't
+    re-generated (2 LLM calls) on every open — only when the sources change or
+    the caller asks to refresh.
+    """
     text, sources = _gather_text(notebook_id, None)
     if not text.strip():
         return {"overview": "", "topics": [], "suggestions": [], "source_count": 0}
+
+    fingerprint = hashlib.md5(
+        ";".join(sorted(s["id"] for s in sources)).encode("utf-8")
+    ).hexdigest()
+    if not force:
+        cached = repo.get_guide_cache(notebook_id)
+        if cached and cached["fingerprint"] == fingerprint:
+            return {
+                "overview": cached["overview"],
+                "topics": cached["topics"],
+                "suggestions": cached["suggestions"],
+                "source_count": cached["source_count"],
+            }
+
     # topics from raw content only (exclude the injected "# title" lines)
     raw = " ".join(s.get("content", "") for s in sources)
-    return {
+    guide = {
         "overview": engine.transform("summary", text),
         "topics": heuristics.top_keywords(raw, 12),
         "suggestions": engine.suggest_questions(text, n=4),
         "source_count": len(sources),
     }
+    repo.set_guide_cache(
+        notebook_id, fingerprint, guide["overview"], guide["topics"],
+        guide["suggestions"], guide["source_count"],
+    )
+    return guide
 
 
 def transcript_to_markdown(script: list[dict], title: str) -> str:

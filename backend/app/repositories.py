@@ -328,3 +328,33 @@ def set_app_settings(values: dict[str, str]) -> None:
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 (key, value),
             )
+
+
+# ── Notebook guide cache ───────────────────────────────────────────────────
+def get_guide_cache(notebook_id: str) -> dict | None:
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT * FROM notebook_guides WHERE notebook_id = ?", (notebook_id,)
+    ).fetchone()
+    if not row:
+        return None
+    d = dict(row)
+    d["topics"] = json.loads(d.get("topics") or "[]")
+    d["suggestions"] = json.loads(d.get("suggestions") or "[]")
+    return d
+
+
+def set_guide_cache(notebook_id: str, fingerprint: str, overview: str,
+                    topics: list[str], suggestions: list[str], source_count: int) -> None:
+    with transaction() as conn:
+        conn.execute(
+            "INSERT INTO notebook_guides "
+            "(notebook_id, fingerprint, overview, topics, suggestions, source_count, created_at) "
+            "VALUES (?,?,?,?,?,?,?) "
+            "ON CONFLICT(notebook_id) DO UPDATE SET "
+            "fingerprint=excluded.fingerprint, overview=excluded.overview, "
+            "topics=excluded.topics, suggestions=excluded.suggestions, "
+            "source_count=excluded.source_count, created_at=excluded.created_at",
+            (notebook_id, fingerprint, overview, json.dumps(topics),
+             json.dumps(suggestions), source_count, now_iso()),
+        )

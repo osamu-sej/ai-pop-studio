@@ -18,9 +18,9 @@ def _require_notebook(notebook_id: str):
 
 # ── Notebook guide (auto overview) ─────────────────────────────────────────
 @router.get("/guide", response_model=NotebookGuide)
-def guide(notebook_id: str):
+def guide(notebook_id: str, force: bool = False):
     _require_notebook(notebook_id)
-    return studio_service.notebook_guide(notebook_id)
+    return studio_service.notebook_guide(notebook_id, force=force)
 
 
 # ── Transformations (summary, study guide, FAQ, ...) ───────────────────────

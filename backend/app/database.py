@@ -94,6 +94,17 @@ CREATE TABLE IF NOT EXISTS app_settings (
     key    TEXT PRIMARY KEY,
     value  TEXT NOT NULL
 );
+
+-- Cached notebook guide, invalidated by a fingerprint of the notebook's sources.
+CREATE TABLE IF NOT EXISTS notebook_guides (
+    notebook_id  TEXT PRIMARY KEY REFERENCES notebooks(id) ON DELETE CASCADE,
+    fingerprint  TEXT NOT NULL,
+    overview     TEXT NOT NULL,
+    topics       TEXT NOT NULL DEFAULT '[]',
+    suggestions  TEXT NOT NULL DEFAULT '[]',
+    source_count INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT NOT NULL
+);
 """
 
 

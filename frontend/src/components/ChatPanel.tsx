@@ -44,7 +44,7 @@ export function ChatPanel({
     if (guide && !force) return
     setGuideLoading(true)
     api
-      .getGuide(notebookId)
+      .getGuide(notebookId, force)
       .then(setGuide)
       .catch(() => setGuide(null))
       .finally(() => setGuideLoading(false))

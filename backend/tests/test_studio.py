@@ -62,6 +62,24 @@ def test_notebook_guide_empty(client, notebook):
     assert g["topics"] == []
 
 
+def test_notebook_guide_cache_and_invalidation(client, notebook_with_source):
+    nid = notebook_with_source["id"]
+    g1 = client.get(f"/api/notebooks/{nid}/studio/guide").json()
+    # second call returns identical content (served from cache)
+    g2 = client.get(f"/api/notebooks/{nid}/studio/guide").json()
+    assert g1 == g2
+    # the cache row exists
+    from app import repositories as repo
+    assert repo.get_guide_cache(nid) is not None
+    # adding a source changes the fingerprint -> guide regenerates
+    client.post(
+        f"/api/notebooks/{nid}/sources/text",
+        json={"title": "More", "content": "Wind turbines harness wind to make power."},
+    )
+    g3 = client.get(f"/api/notebooks/{nid}/studio/guide").json()
+    assert g3["source_count"] == g1["source_count"] + 1
+
+
 def test_suggestions(client, notebook_with_source):
     nid = notebook_with_source["id"]
     qs = client.get(f"/api/notebooks/{nid}/chat/suggestions").json()
